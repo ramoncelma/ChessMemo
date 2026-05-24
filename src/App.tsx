@@ -3,11 +3,12 @@ import { Home } from "./pages/Home";
 import { Studies } from "./pages/Studies";
 import { Import } from "./pages/Import";
 import { Drill } from "./pages/Drill";
+import { Stats } from "./pages/Stats";
 import { Settings } from "./pages/Settings";
 import { useStudies } from "./useStudies";
 import { useSettings } from "./settings";
 
-type Tab = "home" | "studies" | "import" | "settings" | "drill";
+type Tab = "home" | "studies" | "stats" | "settings" | "import" | "drill";
 
 export default function App() {
   const { studies, loaded, addStudy, removeStudy, updateCard } = useStudies();
@@ -17,6 +18,8 @@ export default function App() {
   if (!loaded) {
     return <div className="page center muted">Loading…</div>;
   }
+
+  const showTabbar = tab !== "drill" && tab !== "import";
 
   return (
     <div className="app">
@@ -35,6 +38,7 @@ export default function App() {
             onImport={() => setTab("import")}
           />
         )}
+        {tab === "stats" && <Stats studies={studies} />}
         {tab === "import" && (
           <Import addStudy={addStudy} onAdded={() => setTab("studies")} />
         )}
@@ -55,7 +59,7 @@ export default function App() {
         )}
       </main>
 
-      {tab !== "drill" && (
+      {showTabbar && (
         <nav className="tabbar">
           <button
             className={tab === "home" ? "active" : ""}
@@ -69,14 +73,14 @@ export default function App() {
             onClick={() => setTab("studies")}
           >
             <span className="tab-ico">≣</span>
-            Studies
+            Lines
           </button>
           <button
-            className={tab === "import" ? "active" : ""}
-            onClick={() => setTab("import")}
+            className={tab === "stats" ? "active" : ""}
+            onClick={() => setTab("stats")}
           >
-            <span className="tab-ico">＋</span>
-            Import
+            <span className="tab-ico">▦</span>
+            Progress
           </button>
           <button
             className={tab === "settings" ? "active" : ""}

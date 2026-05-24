@@ -34,6 +34,8 @@ export function buildCards(pgn: string, orientation: Orientation): Card[] {
         answerTo: m.to,
         promotion: m.promotion,
         line: sanSoFar.join(" "),
+        attempts: 0,
+        misses: 0,
         fsrs: newCard(),
       });
     }

@@ -1,4 +1,4 @@
-import { dueCards } from "../useStudies";
+import { dueCount, nextReviewAt, formatCountdown } from "../stats";
 import type { Study } from "../types";
 
 interface Props {
@@ -8,29 +8,33 @@ interface Props {
 }
 
 export function Home({ studies, onDrill, onImport }: Props) {
-  const due = dueCards(studies).length;
-  const totalCards = studies.reduce((n, s) => n + s.cards.length, 0);
+  const due = dueCount(studies);
+  const totalPositions = studies.reduce((n, s) => n + s.cards.length, 0);
+  const next = nextReviewAt(studies);
 
   return (
     <div className="page center">
       <h1 className="brand">ChessMemo</h1>
-      <p className="muted">Spaced repetition for your chess lines</p>
+      <p className="muted">Train your chess by repetition</p>
 
       <div className="due-badge">
         <span className="due-number">{due}</span>
-        <span className="muted">cards due</span>
+        <span className="muted">positions to review</span>
+        {due === 0 && next && (
+          <span className="next-hint">next in {formatCountdown(next)}</span>
+        )}
       </div>
 
-      {totalCards === 0 ? (
+      {totalPositions === 0 ? (
         <>
-          <p className="muted">Import a study to get started.</p>
-          <button className="primary" onClick={onImport}>
-            Import a study
+          <p className="muted">Add a line to start training.</p>
+          <button className="primary big" onClick={onImport}>
+            Add your first line
           </button>
         </>
       ) : (
-        <button className="primary" disabled={due === 0} onClick={onDrill}>
-          {due === 0 ? "Nothing due" : `Start drill (${due})`}
+        <button className="primary big" disabled={due === 0} onClick={onDrill}>
+          {due === 0 ? "All caught up" : `Review now (${due})`}
         </button>
       )}
     </div>

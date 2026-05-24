@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { buildCards, studyNameFromPgn } from "../pgn";
 import { SAMPLE_PGN } from "../sample";
-import type { Orientation, Study } from "../types";
+import { CATEGORY_LABELS, type Category, type Orientation, type Study } from "../types";
 
 interface Props {
   addStudy: (study: Study) => void;
@@ -14,8 +14,11 @@ function uuid(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
+const CATEGORIES: Category[] = ["opening", "tactic", "endgame"];
+
 export function Import({ addStudy, onAdded }: Props) {
   const [pgn, setPgn] = useState("");
+  const [category, setCategory] = useState<Category>("opening");
   const [orientation, setOrientation] = useState<Orientation>("white");
   const [error, setError] = useState<string | null>(null);
 
@@ -34,7 +37,8 @@ export function Import({ addStudy, onAdded }: Props) {
       }
       addStudy({
         id: uuid(),
-        name: studyNameFromPgn(text, "Untitled study"),
+        name: studyNameFromPgn(text, "Untitled"),
+        category,
         orientation,
         createdAt: Date.now(),
         cards,
@@ -48,25 +52,42 @@ export function Import({ addStudy, onAdded }: Props) {
 
   return (
     <div className="page">
-      <h2>Import a study</h2>
+      <h2>Add a line</h2>
       <p className="muted">
-        Paste a PGN of an opening line or game. ChessMemo turns your side's
-        moves into recall cards.
+        Paste a PGN. ChessMemo turns your side's moves into positions to train.
       </p>
 
-      <div className="seg">
-        <button
-          className={orientation === "white" ? "active" : ""}
-          onClick={() => setOrientation("white")}
-        >
-          I play White
-        </button>
-        <button
-          className={orientation === "black" ? "active" : ""}
-          onClick={() => setOrientation("black")}
-        >
-          I play Black
-        </button>
+      <div>
+        <h3 className="section-label">Category</h3>
+        <div className="seg">
+          {CATEGORIES.map((c) => (
+            <button
+              key={c}
+              className={category === c ? "active" : ""}
+              onClick={() => setCategory(c)}
+            >
+              {CATEGORY_LABELS[c]}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div>
+        <h3 className="section-label">Your side</h3>
+        <div className="seg">
+          <button
+            className={orientation === "white" ? "active" : ""}
+            onClick={() => setOrientation("white")}
+          >
+            White
+          </button>
+          <button
+            className={orientation === "black" ? "active" : ""}
+            onClick={() => setOrientation("black")}
+          >
+            Black
+          </button>
+        </div>
       </div>
 
       <textarea
@@ -74,17 +95,17 @@ export function Import({ addStudy, onAdded }: Props) {
         placeholder="1. e4 e5 2. Nf3 ..."
         value={pgn}
         onChange={(e) => setPgn(e.target.value)}
-        rows={10}
+        rows={9}
       />
 
-      {error && <p className="feedback wrong">{error}</p>}
+      {error && <p className="result wrong">{error}</p>}
 
       <div className="row">
         <button className="link" onClick={() => setPgn(SAMPLE_PGN)}>
           Use sample
         </button>
         <button className="primary" onClick={submit}>
-          Create study
+          Create line
         </button>
       </div>
     </div>

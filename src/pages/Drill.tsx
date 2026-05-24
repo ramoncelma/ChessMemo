@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Chess } from "chess.js";
 import { Board } from "../components/Board";
 import { grade } from "../srs";
+import { appendReview } from "../storage";
 import { dueCards, type DueItem } from "../useStudies";
 import type { Card, Orientation, Study } from "../types";
 import type { Settings } from "../settings";
@@ -66,7 +67,14 @@ export function Drill({ studies, settings, updateCard, onDone }: Props) {
   }
 
   function commit(g: "good" | "again") {
-    updateCard(current.studyId, { ...card!, fsrs: grade(card!.fsrs, g) });
+    const correct = g === "good";
+    updateCard(current.studyId, {
+      ...card!,
+      attempts: card!.attempts + 1,
+      misses: card!.misses + (correct ? 0 : 1),
+      fsrs: grade(card!.fsrs, g),
+    });
+    void appendReview(correct);
     setReviewed((n) => n + 1);
     setPhase("awaiting");
     setIndex((i) => i + 1);
