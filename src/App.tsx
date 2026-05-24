@@ -3,12 +3,15 @@ import { Home } from "./pages/Home";
 import { Studies } from "./pages/Studies";
 import { Import } from "./pages/Import";
 import { Drill } from "./pages/Drill";
+import { Settings } from "./pages/Settings";
 import { useStudies } from "./useStudies";
+import { useSettings } from "./settings";
 
-type Tab = "home" | "studies" | "import" | "drill";
+type Tab = "home" | "studies" | "import" | "settings" | "drill";
 
 export default function App() {
   const { studies, loaded, addStudy, removeStudy, updateCard } = useStudies();
+  const { settings, setBoardTheme, setPieceSet } = useSettings();
   const [tab, setTab] = useState<Tab>("home");
 
   if (!loaded) {
@@ -35,9 +38,17 @@ export default function App() {
         {tab === "import" && (
           <Import addStudy={addStudy} onAdded={() => setTab("studies")} />
         )}
+        {tab === "settings" && (
+          <Settings
+            settings={settings}
+            setBoardTheme={setBoardTheme}
+            setPieceSet={setPieceSet}
+          />
+        )}
         {tab === "drill" && (
           <Drill
             studies={studies}
+            settings={settings}
             updateCard={updateCard}
             onDone={() => setTab("home")}
           />
@@ -50,19 +61,29 @@ export default function App() {
             className={tab === "home" ? "active" : ""}
             onClick={() => setTab("home")}
           >
+            <span className="tab-ico">♞</span>
             Home
           </button>
           <button
             className={tab === "studies" ? "active" : ""}
             onClick={() => setTab("studies")}
           >
+            <span className="tab-ico">≣</span>
             Studies
           </button>
           <button
             className={tab === "import" ? "active" : ""}
             onClick={() => setTab("import")}
           >
+            <span className="tab-ico">＋</span>
             Import
+          </button>
+          <button
+            className={tab === "settings" ? "active" : ""}
+            onClick={() => setTab("settings")}
+          >
+            <span className="tab-ico">⚙</span>
+            Settings
           </button>
         </nav>
       )}
