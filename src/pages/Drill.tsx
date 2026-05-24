@@ -116,17 +116,6 @@ export function Drill({ studies, settings, updateCard, onDone }: Props) {
 
       <div className="line-context">{card.line || "Starting position"}</div>
 
-      <div className="analyze-row">
-        <a
-          className="analyze-link"
-          href={lichessAnalysisUrl(card.line, orientation)}
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Analyze on Lichess ↗
-        </a>
-      </div>
-
       <Board
         fen={shownFen}
         orientation={orientation}
@@ -150,6 +139,14 @@ export function Drill({ studies, settings, updateCard, onDone }: Props) {
             <span className="result wrong">
               ✕ The line plays <b>{card.answerSan}</b>
             </span>
+            <a
+              className="analyze-link"
+              href={lichessAnalysisUrl(card.line, orientation)}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Analyze on Lichess ↗
+            </a>
             <button className="primary big" onClick={() => commit("again")}>
               Got it — next
             </button>
