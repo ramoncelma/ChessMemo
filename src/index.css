@@ -1,0 +1,267 @@
+:root {
+  --bg: #1f2933;
+  --surface: #2b3744;
+  --text: #f5f7fa;
+  --muted: #9aa5b1;
+  --accent: #4c9aff;
+  --good: #2f9e44;
+  --hard: #f08c00;
+  --again: #e03131;
+  --easy: #1098ad;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  max-width: 520px;
+  margin: 0 auto;
+}
+
+main {
+  flex: 1;
+  overflow-y: auto;
+  padding: env(safe-area-inset-top) 16px 16px;
+}
+
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding-top: 16px;
+}
+
+.page.center {
+  align-items: center;
+  text-align: center;
+  justify-content: center;
+  min-height: 70vh;
+}
+
+h1,
+h2 {
+  margin: 0;
+}
+
+.brand {
+  font-size: 2rem;
+  letter-spacing: 0.5px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.small {
+  font-size: 0.85rem;
+}
+
+button {
+  font: inherit;
+  cursor: pointer;
+  border: none;
+  border-radius: 10px;
+  padding: 12px 16px;
+  background: var(--surface);
+  color: var(--text);
+}
+
+button:disabled {
+  opacity: 0.5;
+}
+
+button.primary {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
+button.link {
+  background: none;
+  color: var(--accent);
+  padding: 8px;
+}
+
+button.link.danger {
+  color: var(--again);
+}
+
+.row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.due-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  margin: 12px 0;
+}
+
+.due-number {
+  font-size: 3rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.board-wrap {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.drill-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.line-context {
+  font-family: "SF Mono", ui-monospace, monospace;
+  color: var(--muted);
+  font-size: 0.9rem;
+  word-break: break-word;
+  margin: 0;
+}
+
+.prompt {
+  text-align: center;
+  color: var(--muted);
+  margin: 0;
+}
+
+.feedback {
+  text-align: center;
+  margin: 0;
+  padding: 8px;
+  border-radius: 8px;
+}
+
+.feedback.correct {
+  color: #b2f2bb;
+}
+
+.feedback.wrong {
+  color: #ffc9c9;
+}
+
+.grades {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.grade {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  font-weight: 600;
+}
+
+.grade span {
+  font-size: 0.7rem;
+  font-weight: 400;
+  opacity: 0.85;
+}
+
+.grade.again {
+  background: var(--again);
+}
+.grade.hard {
+  background: var(--hard);
+}
+.grade.good {
+  background: var(--good);
+}
+.grade.easy {
+  background: var(--easy);
+}
+
+.seg {
+  display: flex;
+  gap: 8px;
+}
+
+.seg button {
+  flex: 1;
+}
+
+.seg button.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.pgn-input {
+  width: 100%;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid #3b4754;
+  border-radius: 10px;
+  padding: 12px;
+  font-family: "SF Mono", ui-monospace, monospace;
+  resize: vertical;
+}
+
+.list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.list-title {
+  font-weight: 600;
+}
+
+.tabbar {
+  display: flex;
+  border-top: 1px solid #3b4754;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+.tabbar button {
+  flex: 1;
+  background: none;
+  border-radius: 0;
+  color: var(--muted);
+  padding: 14px 0;
+}
+
+.tabbar button.active {
+  color: var(--accent);
+  font-weight: 600;
+}
