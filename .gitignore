@@ -23,6 +23,13 @@ ChessMemo.xcodeproj/
 # Stockfish binary (bundled separately, not committed)
 ChessMemo/Resources/stockfish
 
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/test_output/
+*.ipa
+*.dSYM.zip
+
 # Misc
 *.log
 *.tmp
