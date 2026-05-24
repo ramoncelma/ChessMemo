@@ -41,5 +41,20 @@ jobs:
             -scheme ChessMemo \
             -destination 'generic/platform=iOS Simulator' \
             -configuration Debug \
+            -derivedDataPath build \
             CODE_SIGNING_ALLOWED=NO \
             build
+
+      # Package the simulator app so it can be uploaded to Appetize.io
+      # (play the app in a browser, no Mac or Apple account needed).
+      - name: Zip the simulator app for Appetize.io
+        run: |
+          cd build/Build/Products/Debug-iphonesimulator
+          zip -r -y "$GITHUB_WORKSPACE/ChessMemo-Simulator.zip" ChessMemo.app
+
+      - name: Upload the playable app
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChessMemo-Simulator
+          path: ChessMemo-Simulator.zip
+          if-no-files-found: error
