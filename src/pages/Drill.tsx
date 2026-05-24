@@ -3,6 +3,7 @@ import { Chess } from "chess.js";
 import { Board } from "../components/Board";
 import { grade } from "../srs";
 import { appendReview } from "../storage";
+import { lichessAnalysisUrl } from "../lichess";
 import { dueCards, type DueItem } from "../useStudies";
 import type { Card, Orientation, Study } from "../types";
 import type { Settings } from "../settings";
@@ -114,6 +115,17 @@ export function Drill({ studies, settings, updateCard, onDone }: Props) {
       </div>
 
       <div className="line-context">{card.line || "Starting position"}</div>
+
+      <div className="analyze-row">
+        <a
+          className="analyze-link"
+          href={lichessAnalysisUrl(card.line, orientation)}
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Analyze on Lichess ↗
+        </a>
+      </div>
 
       <Board
         fen={shownFen}

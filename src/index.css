@@ -252,6 +252,23 @@ button.link.danger {
   min-height: 1.2em;
 }
 
+.analyze-row {
+  display: flex;
+  justify-content: center;
+  margin-top: -4px;
+}
+
+.analyze-link {
+  color: var(--accent);
+  text-decoration: none;
+  font-size: 0.85rem;
+  font-weight: 600;
+  padding: 6px 14px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  background: var(--surface);
+}
+
 .drill-status {
   display: flex;
   justify-content: center;
