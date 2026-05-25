@@ -17,11 +17,17 @@ export interface Card {
   fsrs: FsrsCard;
 }
 
+// A single PGN added to an opening. An opening can hold several.
+export interface Chapter {
+  name: string;
+  pgn: string;
+}
+
 export interface Study {
   id: string;
   name: string;
   orientation: Orientation;
-  pgn: string;
+  chapters: Chapter[];
   createdAt: number;
   cards: Card[];
 }

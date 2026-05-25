@@ -1,20 +1,25 @@
 import { get, set } from "idb-keyval";
-import type { Study } from "./types";
+import type { Chapter, Study } from "./types";
 
 const STUDIES_KEY = "chessmemo.studies";
 const LOG_KEY = "chessmemo.reviewlog";
 
 // Normalize studies loaded from older versions that lacked some fields.
 function normalize(studies: Study[]): Study[] {
-  return studies.map((s) => ({
-    ...s,
-    pgn: s.pgn ?? "",
-    cards: s.cards.map((c) => ({
-      ...c,
-      attempts: c.attempts ?? 0,
-      misses: c.misses ?? 0,
-    })),
-  }));
+  return studies.map((s) => {
+    const legacyPgn = (s as { pgn?: string }).pgn;
+    const chapters: Chapter[] =
+      s.chapters ?? (legacyPgn ? [{ name: "Chapter 1", pgn: legacyPgn }] : []);
+    return {
+      ...s,
+      chapters,
+      cards: s.cards.map((c) => ({
+        ...c,
+        attempts: c.attempts ?? 0,
+        misses: c.misses ?? 0,
+      })),
+    };
+  });
 }
 
 export async function loadStudies(): Promise<Study[]> {

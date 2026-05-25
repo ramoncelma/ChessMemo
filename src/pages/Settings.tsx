@@ -4,6 +4,7 @@ import {
   PIECE_SETS,
   type PieceSet,
   type Settings as SettingsType,
+  type Theme,
 } from "../settings";
 
 const PREVIEW_FEN = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1";
@@ -12,16 +13,40 @@ interface Props {
   settings: SettingsType;
   setBoardTheme: (id: string) => void;
   setPieceSet: (set: PieceSet) => void;
+  setTheme: (theme: Theme) => void;
 }
 
 function pieceThumb(set: PieceSet): string {
   return `https://cdn.jsdelivr.net/gh/lichess-org/lila@master/public/piece/${set}/wN.svg`;
 }
 
-export function Settings({ settings, setBoardTheme, setPieceSet }: Props) {
+export function Settings({
+  settings,
+  setBoardTheme,
+  setPieceSet,
+  setTheme,
+}: Props) {
   return (
     <div className="page">
       <h2>Appearance</h2>
+
+      <section>
+        <h3 className="section-label">Theme</h3>
+        <div className="seg">
+          <button
+            className={settings.theme === "light" ? "active" : ""}
+            onClick={() => setTheme("light")}
+          >
+            Light
+          </button>
+          <button
+            className={settings.theme === "dark" ? "active" : ""}
+            onClick={() => setTheme("dark")}
+          >
+            Dark
+          </button>
+        </div>
+      </section>
 
       <div className="preview">
         <Board

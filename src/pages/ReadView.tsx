@@ -9,20 +9,30 @@ interface Props {
   study: Study;
   settings: Settings;
   onBack: () => void;
+  onPractice: (id: string) => void;
 }
 
-export function ReadView({ study, settings, onBack }: Props) {
+export function ReadView({ study, settings, onBack, onPractice }: Props) {
+  const [chapterIdx, setChapterIdx] = useState(0);
+  const [path, setPath] = useState<PgnNode[]>([]);
+
+  const chapter = study.chapters[chapterIdx];
+
   const tree = useMemo(() => {
+    if (!chapter) return null;
     try {
-      return parsePgn(study.pgn);
+      return parsePgn(chapter.pgn);
     } catch {
       return null;
     }
-  }, [study.pgn]);
+  }, [chapter]);
 
-  const [path, setPath] = useState<PgnNode[]>([]);
+  function selectChapter(i: number) {
+    setChapterIdx(i);
+    setPath([]);
+  }
 
-  if (!tree || (!study.pgn && tree.children.length === 0)) {
+  if (!tree || study.chapters.length === 0) {
     return (
       <div className="page">
         <div className="row">
@@ -32,8 +42,7 @@ export function ReadView({ study, settings, onBack }: Props) {
           </button>
         </div>
         <p className="muted">
-          This opening was added before reading was supported. Re-import its PGN
-          to read through the lines.
+          This opening has no readable PGN. Re-import it to read the lines.
         </p>
       </div>
     );
@@ -50,8 +59,24 @@ export function ReadView({ study, settings, onBack }: Props) {
         <button className="link" onClick={onBack}>
           ← Back
         </button>
-        <span className="muted small">{study.name}</span>
+        <button className="link" onClick={() => onPractice(study.id)}>
+          Practice ▶
+        </button>
       </div>
+
+      {study.chapters.length > 1 && (
+        <select
+          className="select"
+          value={chapterIdx}
+          onChange={(e) => selectChapter(Number(e.target.value))}
+        >
+          {study.chapters.map((c, i) => (
+            <option key={i} value={i}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+      )}
 
       <div className="line-context">{sans.join(" ") || "Starting position"}</div>
 
@@ -84,7 +109,7 @@ export function ReadView({ study, settings, onBack }: Props) {
         </a>
       </div>
 
-      {nextMoves.length > 0 && (
+      {nextMoves.length > 0 ? (
         <div className="next-moves">
           <span className="muted small">
             {nextMoves.length > 1 ? "Choose a line:" : "Continue:"}
@@ -101,9 +126,7 @@ export function ReadView({ study, settings, onBack }: Props) {
             ))}
           </div>
         </div>
-      )}
-
-      {nextMoves.length === 0 && (
+      ) : (
         <p className="muted small center-text">End of this line.</p>
       )}
     </div>

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { loadStudies, saveStudies } from "./storage";
 import { isDue } from "./srs";
-import type { Card, Study } from "./types";
+import type { Card, Chapter, Study } from "./types";
 
 export function useStudies() {
   const [studies, setStudies] = useState<Study[]>([]);
@@ -42,7 +42,44 @@ export function useStudies() {
     [studies, persist],
   );
 
-  return { studies, loaded, addStudy, removeStudy, updateCard, persist };
+  const renameStudy = useCallback(
+    (id: string, name: string) =>
+      persist(studies.map((s) => (s.id === id ? { ...s, name } : s))),
+    [studies, persist],
+  );
+
+  // Append a chapter and only the positions not already present (preserving
+  // existing scheduling progress).
+  const addChapter = useCallback(
+    (id: string, chapter: Chapter, newCards: Card[]) => {
+      persist(
+        studies.map((s) => {
+          if (s.id !== id) return s;
+          const seen = new Set(s.cards.map((c) => `${c.fen}|${c.answerSan}`));
+          const added = newCards.filter(
+            (c) => !seen.has(`${c.fen}|${c.answerSan}`),
+          );
+          return {
+            ...s,
+            chapters: [...s.chapters, chapter],
+            cards: [...s.cards, ...added],
+          };
+        }),
+      );
+    },
+    [studies, persist],
+  );
+
+  return {
+    studies,
+    loaded,
+    addStudy,
+    removeStudy,
+    updateCard,
+    renameStudy,
+    addChapter,
+    persist,
+  };
 }
 
 export interface DueItem {

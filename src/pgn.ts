@@ -45,12 +45,22 @@ export function buildCards(pgn: string, orientation: Orientation): Card[] {
   return cards;
 }
 
+function header(pgn: string, tag: string): string | undefined {
+  const v = new RegExp(`\\[${tag}\\s+"([^"]*)"\\]`).exec(pgn)?.[1]?.trim();
+  return v && v !== "?" ? v : undefined;
+}
+
 export function studyNameFromPgn(pgn: string, fallback: string): string {
-  const chapter = /\[ChapterName\s+"([^"]*)"\]/.exec(pgn)?.[1]?.trim();
-  const opening = /\[Opening\s+"([^"]*)"\]/.exec(pgn)?.[1]?.trim();
-  const event = /\[Event\s+"([^"]*)"\]/.exec(pgn)?.[1]?.trim();
-  if (opening && opening !== "?") return opening;
-  if (event && event !== "?") return event;
-  if (chapter && chapter !== "?") return chapter;
-  return fallback;
+  return (
+    header(pgn, "Opening") ??
+    header(pgn, "StudyName") ??
+    header(pgn, "Event") ??
+    fallback
+  );
+}
+
+export function chapterNameFromPgn(pgn: string, fallback: string): string {
+  return (
+    header(pgn, "ChapterName") ?? header(pgn, "Event") ?? fallback
+  );
 }

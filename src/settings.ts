@@ -29,12 +29,19 @@ export const PIECE_SETS = [
 
 export type PieceSet = (typeof PIECE_SETS)[number];
 
+export type Theme = "light" | "dark";
+
 export interface Settings {
   boardThemeId: string;
   pieceSet: PieceSet;
+  theme: Theme;
 }
 
-const DEFAULTS: Settings = { boardThemeId: "green", pieceSet: "cburnett" };
+const DEFAULTS: Settings = {
+  boardThemeId: "green",
+  pieceSet: "cburnett",
+  theme: "light",
+};
 const KEY = "chessmemo.settings";
 
 function read(): Settings {
@@ -52,6 +59,7 @@ export function useSettings() {
 
   useEffect(() => {
     localStorage.setItem(KEY, JSON.stringify(settings));
+    document.documentElement.dataset.theme = settings.theme;
   }, [settings]);
 
   return {
@@ -60,6 +68,7 @@ export function useSettings() {
       setSettings((s) => ({ ...s, boardThemeId })),
     setPieceSet: (pieceSet: PieceSet) =>
       setSettings((s) => ({ ...s, pieceSet })),
+    setTheme: (theme: Theme) => setSettings((s) => ({ ...s, theme })),
   };
 }
 

@@ -1,28 +1,36 @@
 import { useState } from "react";
-import { Home } from "./pages/Home";
-import { Studies } from "./pages/Studies";
+import { Dashboard } from "./pages/Dashboard";
+import { Practice } from "./pages/Practice";
+import { ReadList } from "./pages/ReadList";
+import { ReadView } from "./pages/ReadView";
 import { Import } from "./pages/Import";
 import { Drill } from "./pages/Drill";
-import { ReadView } from "./pages/ReadView";
-import { Stats } from "./pages/Stats";
 import { Settings } from "./pages/Settings";
 import { useStudies, dueCards, type DueItem } from "./useStudies";
 import { useSettings } from "./settings";
 
-type Tab = "home" | "studies" | "stats" | "settings" | "import" | "drill" | "read";
+type Tab = "dashboard" | "practice" | "read" | "import" | "settings" | "drill";
 
 export default function App() {
-  const { studies, loaded, addStudy, removeStudy, updateCard } = useStudies();
-  const { settings, setBoardTheme, setPieceSet } = useSettings();
-  const [tab, setTab] = useState<Tab>("home");
-  const [activeId, setActiveId] = useState<string | null>(null);
+  const {
+    studies,
+    loaded,
+    addStudy,
+    removeStudy,
+    updateCard,
+    renameStudy,
+    addChapter,
+  } = useStudies();
+  const { settings, setBoardTheme, setPieceSet, setTheme } = useSettings();
+  const [tab, setTab] = useState<Tab>("dashboard");
+  const [readingId, setReadingId] = useState<string | null>(null);
   const [drillItems, setDrillItems] = useState<DueItem[]>([]);
 
   if (!loaded) {
     return <div className="page center muted">Loading…</div>;
   }
 
-  const activeStudy = studies.find((s) => s.id === activeId) ?? null;
+  const readingStudy = studies.find((s) => s.id === readingId) ?? null;
 
   function reviewAllDue() {
     setDrillItems(dueCards(studies));
@@ -36,38 +44,58 @@ export default function App() {
     setTab("drill");
   }
 
-  function readStudy(id: string) {
-    setActiveId(id);
+  function openRead(id: string) {
+    setReadingId(id);
     setTab("read");
   }
 
-  const showTabbar = tab === "home" || tab === "studies" || tab === "stats" || tab === "settings";
+  const showTabbar = tab !== "drill";
 
   return (
     <div className="app">
       <main>
-        {tab === "home" && (
-          <Home
+        {tab === "dashboard" && (
+          <Dashboard
             studies={studies}
-            onDrill={reviewAllDue}
+            onPractice={() => setTab("practice")}
+            onRead={() => {
+              setReadingId(null);
+              setTab("read");
+            }}
             onImport={() => setTab("import")}
           />
         )}
-        {tab === "studies" && (
-          <Studies
+        {tab === "practice" && (
+          <Practice
             studies={studies}
-            removeStudy={removeStudy}
+            onReviewDue={reviewAllDue}
+            onPracticeStudy={practiceStudy}
             onImport={() => setTab("import")}
-            onRead={readStudy}
-            onPractice={practiceStudy}
           />
         )}
-        {tab === "stats" && <Stats studies={studies} />}
+        {tab === "read" &&
+          (readingStudy ? (
+            <ReadView
+              study={readingStudy}
+              settings={settings}
+              onBack={() => setReadingId(null)}
+              onPractice={practiceStudy}
+            />
+          ) : (
+            <ReadList
+              studies={studies}
+              onRead={openRead}
+              onImport={() => setTab("import")}
+            />
+          ))}
         {tab === "import" && (
           <Import
+            studies={studies}
             addStudy={addStudy}
-            onAdded={() => setTab("studies")}
-            onCancel={() => setTab("studies")}
+            addChapter={addChapter}
+            renameStudy={renameStudy}
+            removeStudy={removeStudy}
+            onDone={() => setTab("dashboard")}
           />
         )}
         {tab === "settings" && (
@@ -75,13 +103,7 @@ export default function App() {
             settings={settings}
             setBoardTheme={setBoardTheme}
             setPieceSet={setPieceSet}
-          />
-        )}
-        {tab === "read" && activeStudy && (
-          <ReadView
-            study={activeStudy}
-            settings={settings}
-            onBack={() => setTab("studies")}
+            setTheme={setTheme}
           />
         )}
         {tab === "drill" && (
@@ -90,7 +112,7 @@ export default function App() {
             studies={studies}
             settings={settings}
             updateCard={updateCard}
-            onDone={() => setTab("home")}
+            onDone={() => setTab("dashboard")}
           />
         )}
       </main>
@@ -98,25 +120,35 @@ export default function App() {
       {showTabbar && (
         <nav className="tabbar">
           <button
-            className={tab === "home" ? "active" : ""}
-            onClick={() => setTab("home")}
-          >
-            <span className="tab-ico">♞</span>
-            Home
-          </button>
-          <button
-            className={tab === "studies" ? "active" : ""}
-            onClick={() => setTab("studies")}
-          >
-            <span className="tab-ico">≣</span>
-            Openings
-          </button>
-          <button
-            className={tab === "stats" ? "active" : ""}
-            onClick={() => setTab("stats")}
+            className={tab === "dashboard" ? "active" : ""}
+            onClick={() => setTab("dashboard")}
           >
             <span className="tab-ico">▦</span>
-            Progress
+            Dashboard
+          </button>
+          <button
+            className={tab === "practice" ? "active" : ""}
+            onClick={() => setTab("practice")}
+          >
+            <span className="tab-ico">♟</span>
+            Practice
+          </button>
+          <button
+            className={tab === "read" ? "active" : ""}
+            onClick={() => {
+              setReadingId(null);
+              setTab("read");
+            }}
+          >
+            <span className="tab-ico">≣</span>
+            Read
+          </button>
+          <button
+            className={tab === "import" ? "active" : ""}
+            onClick={() => setTab("import")}
+          >
+            <span className="tab-ico">＋</span>
+            Import
           </button>
           <button
             className={tab === "settings" ? "active" : ""}
