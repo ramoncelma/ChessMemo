@@ -2,14 +2,6 @@ import type { Card as FsrsCard } from "ts-fsrs";
 
 export type Orientation = "white" | "black";
 
-export type Category = "opening" | "tactic" | "endgame";
-
-export const CATEGORY_LABELS: Record<Category, string> = {
-  opening: "Openings",
-  tactic: "Tactics",
-  endgame: "Endgames",
-};
-
 // One thing to recall: the position (FEN) just before the trainee's move,
 // plus the move they are expected to play.
 export interface Card {
@@ -28,8 +20,8 @@ export interface Card {
 export interface Study {
   id: string;
   name: string;
-  category: Category;
   orientation: Orientation;
+  pgn: string;
   createdAt: number;
   cards: Card[];
 }

@@ -545,6 +545,88 @@ button.link.danger {
   transition: height 0.3s ease;
 }
 
+/* Study cards */
+.study-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 14px 16px;
+}
+
+.study-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.study-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 4px;
+}
+
+.study-actions button {
+  flex: 1;
+  padding: 10px;
+}
+
+/* Read mode */
+.read-comment {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--accent);
+  border-radius: 10px;
+  padding: 12px 14px;
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.read-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.nav-btn {
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.next-moves {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.move-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.move-choice {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  font-family: ui-monospace, "SF Mono", monospace;
+  font-weight: 600;
+  padding: 10px 16px;
+}
+
+.move-choice.main {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.center-text {
+  text-align: center;
+}
+
 /* Tab bar */
 .tabbar {
   display: flex;
@@ -575,4 +657,58 @@ button.link.danger {
 .tabbar button.active {
   color: var(--accent);
   font-weight: 600;
+}
+
+/* Desktop: wider layout with a left sidebar instead of a bottom bar */
+@media (min-width: 820px) {
+  .app {
+    flex-direction: row-reverse;
+    max-width: 1080px;
+    height: 100vh;
+  }
+
+  main {
+    padding: 36px 56px;
+  }
+
+  .page {
+    max-width: 660px;
+    margin: 0 auto;
+    gap: 22px;
+  }
+
+  .page.center {
+    min-height: calc(100vh - 72px);
+  }
+
+  .tabbar {
+    flex-direction: column;
+    width: 220px;
+    border-top: none;
+    border-right: 1px solid var(--border);
+    padding: 28px 14px;
+    gap: 6px;
+  }
+
+  .tabbar button {
+    flex: none;
+    flex-direction: row;
+    justify-content: flex-start;
+    gap: 14px;
+    padding: 13px 16px;
+    border-radius: 12px;
+    font-size: 0.98rem;
+  }
+
+  .tabbar button.active {
+    background: var(--surface);
+  }
+
+  .tab-ico {
+    font-size: 1.3rem;
+  }
+
+  .stat-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }

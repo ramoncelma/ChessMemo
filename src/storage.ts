@@ -1,5 +1,5 @@
 import { get, set } from "idb-keyval";
-import type { Category, Study } from "./types";
+import type { Study } from "./types";
 
 const STUDIES_KEY = "chessmemo.studies";
 const LOG_KEY = "chessmemo.reviewlog";
@@ -8,7 +8,7 @@ const LOG_KEY = "chessmemo.reviewlog";
 function normalize(studies: Study[]): Study[] {
   return studies.map((s) => ({
     ...s,
-    category: (s.category ?? "opening") as Category,
+    pgn: s.pgn ?? "",
     cards: s.cards.map((c) => ({
       ...c,
       attempts: c.attempts ?? 0,

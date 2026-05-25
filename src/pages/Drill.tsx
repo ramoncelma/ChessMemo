@@ -4,11 +4,12 @@ import { Board } from "../components/Board";
 import { grade } from "../srs";
 import { appendReview } from "../storage";
 import { lichessAnalysisUrl } from "../lichess";
-import { dueCards, type DueItem } from "../useStudies";
+import { type DueItem } from "../useStudies";
 import type { Card, Orientation, Study } from "../types";
 import type { Settings } from "../settings";
 
 interface Props {
+  items: DueItem[];
   studies: Study[];
   settings: Settings;
   updateCard: (studyId: string, card: Card) => void;
@@ -17,8 +18,8 @@ interface Props {
 
 type Phase = "awaiting" | "correct" | "wrong";
 
-export function Drill({ studies, settings, updateCard, onDone }: Props) {
-  const [queue] = useState<DueItem[]>(() => dueCards(studies));
+export function Drill({ items, studies, settings, updateCard, onDone }: Props) {
+  const [queue] = useState<DueItem[]>(() => items);
   const [index, setIndex] = useState(0);
   const [phase, setPhase] = useState<Phase>("awaiting");
   const [reviewed, setReviewed] = useState(0);

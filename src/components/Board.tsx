@@ -53,7 +53,7 @@ export function Board({
   useEffect(() => {
     const el = wrapRef.current;
     if (!el) return;
-    const update = () => setWidth(Math.min(el.clientWidth, 460));
+    const update = () => setWidth(Math.min(el.clientWidth, 540));
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);

@@ -1,5 +1,5 @@
-import { Chess } from "chess.js";
 import { newCard } from "./srs";
+import { parsePgn, type PgnNode } from "./pgnTree";
 import type { Card, Orientation } from "./types";
 
 function uuid(): string {
@@ -9,50 +9,48 @@ function uuid(): string {
   return Math.random().toString(36).slice(2) + Date.now().toString(36);
 }
 
-// Turn the mainline of a PGN into recall cards for the trainee's side.
+// Turn every line in a PGN (mainline + variations) into recall cards for the
+// trainee's side.
 export function buildCards(pgn: string, orientation: Orientation): Card[] {
-  const game = new Chess();
-  game.loadPgn(pgn); // throws on invalid PGN
-  const moves = game.history({ verbose: true });
-
-  const replay = new Chess();
+  const tree = parsePgn(pgn); // throws on invalid PGN
+  const want = orientation === "white" ? "w" : "b";
   const cards: Card[] = [];
-  const sanSoFar: string[] = [];
+  const seen = new Set<string>();
 
-  for (const m of moves) {
-    const sideToMove = replay.turn(); // "w" | "b"
-    const traineeToMove =
-      (orientation === "white" && sideToMove === "w") ||
-      (orientation === "black" && sideToMove === "b");
-
-    if (traineeToMove) {
-      cards.push({
-        id: uuid(),
-        fen: replay.fen(),
-        answerSan: m.san,
-        answerFrom: m.from,
-        answerTo: m.to,
-        promotion: m.promotion,
-        line: sanSoFar.join(" "),
-        attempts: 0,
-        misses: 0,
-        fsrs: newCard(),
-      });
+  const walk = (nodes: PgnNode[], lineSans: string[]) => {
+    for (const node of nodes) {
+      if (node.color === want) {
+        const key = `${node.fenBefore}|${node.san}`;
+        if (!seen.has(key)) {
+          seen.add(key);
+          cards.push({
+            id: uuid(),
+            fen: node.fenBefore,
+            answerSan: node.san,
+            answerFrom: node.from,
+            answerTo: node.to,
+            promotion: node.promotion,
+            line: lineSans.join(" "),
+            attempts: 0,
+            misses: 0,
+            fsrs: newCard(),
+          });
+        }
+      }
+      walk(node.children, [...lineSans, node.san]);
     }
+  };
 
-    replay.move(m.san);
-    sanSoFar.push(m.san);
-  }
-
+  walk(tree.children, []);
   return cards;
 }
 
-// A friendly name from the PGN headers, falling back to a default.
 export function studyNameFromPgn(pgn: string, fallback: string): string {
-  const white = /\[White\s+"([^"]*)"\]/.exec(pgn)?.[1]?.trim();
-  const black = /\[Black\s+"([^"]*)"\]/.exec(pgn)?.[1]?.trim();
+  const chapter = /\[ChapterName\s+"([^"]*)"\]/.exec(pgn)?.[1]?.trim();
+  const opening = /\[Opening\s+"([^"]*)"\]/.exec(pgn)?.[1]?.trim();
   const event = /\[Event\s+"([^"]*)"\]/.exec(pgn)?.[1]?.trim();
-  if (white && black && white !== "?" && black !== "?") return `${white} – ${black}`;
+  if (opening && opening !== "?") return opening;
   if (event && event !== "?") return event;
+  if (chapter && chapter !== "?") return chapter;
   return fallback;
 }
