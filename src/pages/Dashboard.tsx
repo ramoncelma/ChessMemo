@@ -21,8 +21,27 @@ export function Dashboard({ studies, onPractice, onRead, onImport }: Props) {
   const acc = accuracy(studies.flatMap((s) => s.cards));
   const streak = log ? currentStreak(log) : 0;
 
+  const base = import.meta.env.BASE_URL;
+  const hideOnError = (e: React.SyntheticEvent<HTMLImageElement>) => {
+    e.currentTarget.remove();
+  };
+
   return (
     <div className="page">
+      <div className="logo-wrap">
+        <img
+          className="logo logo-light"
+          src={`${base}logo-light.png`}
+          alt="ChessMemo"
+          onError={hideOnError}
+        />
+        <img
+          className="logo logo-dark"
+          src={`${base}logo-dark.png`}
+          alt="ChessMemo"
+          onError={hideOnError}
+        />
+      </div>
       <h1 className="brand">ChessMemo</h1>
       <p className="muted">Your opening trainer</p>
 

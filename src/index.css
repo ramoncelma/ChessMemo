@@ -668,6 +668,89 @@ button.link.danger {
   text-align: center;
 }
 
+/* Logo */
+.logo-wrap {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.logo {
+  width: 112px;
+  height: auto;
+}
+
+.logo-dark {
+  display: none;
+}
+
+[data-theme="dark"] .logo-light {
+  display: none;
+}
+
+[data-theme="dark"] .logo-dark {
+  display: block;
+}
+
+/* Read layout */
+.read-layout {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.read-board {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.read-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  max-height: 42vh;
+  overflow-y: auto;
+}
+
+.movetree {
+  line-height: 2.1;
+  font-size: 0.95rem;
+}
+
+.move {
+  display: inline;
+  background: none;
+  border: none;
+  padding: 2px 5px;
+  border-radius: 6px;
+  color: var(--text);
+  font-family: ui-monospace, "SF Mono", monospace;
+}
+
+.move:hover {
+  background: var(--surface-2);
+}
+
+.move.current {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+
+.var {
+  color: var(--muted);
+}
+
+.var .move {
+  color: var(--muted);
+}
+
+.var .move.current {
+  color: #fff;
+}
+
 /* Tab bar */
 .tabbar {
   display: flex;
@@ -751,5 +834,26 @@ button.link.danger {
 
   .stat-grid {
     grid-template-columns: repeat(4, 1fr);
+  }
+
+  .read-page {
+    max-width: 1000px;
+  }
+
+  .read-layout {
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  .read-board {
+    flex: 0 0 auto;
+    width: 460px;
+  }
+
+  .read-panel {
+    flex: 1;
+    max-height: 70vh;
+    position: sticky;
+    top: 0;
   }
 }
