@@ -6,11 +6,11 @@ interface Props {
   onSelect: (path: PgnNode[]) => void;
 }
 
-// Renders the PGN as clickable notation: mainline inline, variations in
-// parentheses, the current move highlighted.
+// Renders the PGN as clickable notation. The mainline flows inline; each
+// variation breaks onto its own indented sub-line so sublines are clear.
 export function MoveTree({ children, current, onSelect }: Props) {
   let key = 0;
-  const nextKey = () => key++;
+  const k = () => key++;
 
   function label(node: PgnNode, ply: number, force: boolean): string {
     const no = Math.ceil(ply / 2);
@@ -18,42 +18,48 @@ export function MoveTree({ children, current, onSelect }: Props) {
     return force ? `${no}… ${node.san}` : node.san;
   }
 
-  function render(
+  function move(node: PgnNode, path: PgnNode[], force: boolean): JSX.Element {
+    return (
+      <button
+        key={k()}
+        className={`move ${node === current ? "current" : ""}`}
+        onClick={() => onSelect(path)}
+      >
+        {label(node, path.length, force)}
+        {node.comment && (
+          <span className="cmt" title={node.comment}>
+            *
+          </span>
+        )}
+      </button>
+    );
+  }
+
+  function seq(
     nodes: PgnNode[],
     path: PgnNode[],
     startOfLine: boolean,
-  ): JSX.Element[] {
-    if (nodes.length === 0) return [];
-    const out: JSX.Element[] = [];
+  ): JSX.Element | null {
+    if (nodes.length === 0) return null;
     const main = nodes[0];
     const mainPath = [...path, main];
-
-    out.push(
-      <button
-        key={nextKey()}
-        className={`move ${main === current ? "current" : ""}`}
-        onClick={() => onSelect(mainPath)}
-      >
-        {label(main, mainPath.length, startOfLine)}
-      </button>,
+    const hasVars = nodes.length > 1;
+    return (
+      <>
+        {move(main, mainPath, startOfLine)}
+        {nodes.slice(1).map((alt) => (
+          <div key={k()} className="subline">
+            {seq([alt], path, true)}
+          </div>
+        ))}
+        {seq(main.children, mainPath, hasVars)}
+      </>
     );
-
-    // Alternatives to the mainline move, shown as parenthesised variations.
-    for (let i = 1; i < nodes.length; i++) {
-      out.push(
-        <span key={nextKey()} className="var">
-          ({render([nodes[i]], path, true)})
-        </span>,
-      );
-    }
-
-    out.push(...render(main.children, mainPath, false));
-    return out;
   }
 
   if (children.length === 0) {
     return <p className="muted small">No moves in this chapter.</p>;
   }
 
-  return <div className="movetree">{render(children, [], true)}</div>;
+  return <div className="movetree">{seq(children, [], true)}</div>;
 }

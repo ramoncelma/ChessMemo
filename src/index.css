@@ -668,15 +668,15 @@ button.link.danger {
   text-align: center;
 }
 
-/* Logo */
-.logo-wrap {
+/* Logo + dashboard header */
+.dash-header {
   display: flex;
-  justify-content: center;
-  margin-bottom: 4px;
+  align-items: center;
+  gap: 14px;
 }
 
 .logo {
-  width: 112px;
+  width: 56px;
   height: auto;
 }
 
@@ -739,15 +739,70 @@ button.link.danger {
   font-weight: 700;
 }
 
-.var {
+.cmt {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.subline {
+  margin: 4px 0 4px 14px;
+  padding-left: 12px;
+  border-left: 2px solid var(--border);
   color: var(--muted);
 }
 
-.var .move {
+.subline .move {
   color: var(--muted);
 }
 
-.var .move.current {
+.subline .move.current {
+  color: #fff;
+}
+
+/* Dashboard boxes */
+.box-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.box-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 18px;
+  padding: 18px;
+  text-align: left;
+}
+
+.box-icon {
+  width: 32px;
+  height: 32px;
+  color: var(--accent);
+  margin-bottom: 2px;
+}
+
+.box-title {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.box-sub {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.box-card.primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+  border: none;
+}
+
+.box-card.primary .box-icon,
+.box-card.primary .box-sub {
   color: #fff;
 }
 
@@ -833,6 +888,10 @@ button.link.danger {
   }
 
   .stat-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  .box-grid {
     grid-template-columns: repeat(4, 1fr);
   }
 
