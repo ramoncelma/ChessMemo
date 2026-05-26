@@ -14,6 +14,7 @@ interface Props {
   setBoardTheme: (id: string) => void;
   setPieceSet: (set: PieceSet) => void;
   setTheme: (theme: Theme) => void;
+  setPositionMissResetsLine: (v: boolean) => void;
 }
 
 function pieceThumb(set: PieceSet): string {
@@ -25,6 +26,7 @@ export function Settings({
   setBoardTheme,
   setPieceSet,
   setTheme,
+  setPositionMissResetsLine,
 }: Props) {
   return (
     <div className="page">
@@ -94,6 +96,24 @@ export function Settings({
             </button>
           ))}
         </div>
+      </section>
+
+      <section>
+        <h3 className="section-label">Practice</h3>
+        <label className="toggle-row">
+          <span>
+            <span className="toggle-title">Position misses reset the line</span>
+            <span className="muted small">
+              A wrong move in "Practice position" sends that line back to the
+              start of the spaced-repetition cycle.
+            </span>
+          </span>
+          <input
+            type="checkbox"
+            checked={settings.positionMissResetsLine}
+            onChange={(e) => setPositionMissResetsLine(e.target.checked)}
+          />
+        </label>
       </section>
     </div>
   );

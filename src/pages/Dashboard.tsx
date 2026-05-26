@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { loadReviewLog, type ReviewEntry } from "../storage";
-import { accuracy, currentStreak, dueCount, forecast } from "../stats";
+import { accuracy, currentStreak, dueCount, forecast, retention } from "../stats";
 import type { Study } from "../types";
 
 interface Props {
@@ -56,6 +56,7 @@ export function Dashboard({
   const streak = log ? currentStreak(log) : 0;
   const hasCards = studies.some((s) => s.cards.length > 0);
   const days = forecast(studies);
+  const retainedPct = retention(studies.flatMap((s) => s.cards)).retainedPct;
 
   const base = import.meta.env.BASE_URL;
   const hideOnError = (e: React.SyntheticEvent<HTMLImageElement>) =>
@@ -94,6 +95,10 @@ export function Dashboard({
         <div className="stat-card">
           <span className="stat-value">{streak}🔥</span>
           <span className="muted small">day streak</span>
+        </div>
+        <div className="stat-card">
+          <span className="stat-value">{retainedPct}%</span>
+          <span className="muted small">retained</span>
         </div>
       </div>
 

@@ -11,7 +11,11 @@ function uuid(): string {
 
 // Turn every line in a PGN (mainline + variations) into recall cards for the
 // trainee's side.
-export function buildCards(pgn: string, orientation: Orientation): Card[] {
+export function buildCards(
+  pgn: string,
+  orientation: Orientation,
+  chapterIdx = 0,
+): Card[] {
   const tree = parsePgn(pgn); // throws on invalid PGN
   const want = orientation === "white" ? "w" : "b";
   const cards: Card[] = [];
@@ -31,6 +35,7 @@ export function buildCards(pgn: string, orientation: Orientation): Card[] {
             answerTo: node.to,
             promotion: node.promotion,
             line: lineSans.join(" "),
+            chapterIdx,
             attempts: 0,
             misses: 0,
             fsrs: newCard(),

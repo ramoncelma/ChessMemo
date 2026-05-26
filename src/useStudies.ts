@@ -70,6 +70,24 @@ export function useStudies() {
     [studies, persist],
   );
 
+  const renameChapter = useCallback(
+    (studyId: string, idx: number, name: string) => {
+      persist(
+        studies.map((s) =>
+          s.id === studyId
+            ? {
+                ...s,
+                chapters: s.chapters.map((c, i) =>
+                  i === idx ? { ...c, name } : c,
+                ),
+              }
+            : s,
+        ),
+      );
+    },
+    [studies, persist],
+  );
+
   return {
     studies,
     loaded,
@@ -77,6 +95,7 @@ export function useStudies() {
     removeStudy,
     updateCard,
     renameStudy,
+    renameChapter,
     addChapter,
     persist,
   };
@@ -85,6 +104,29 @@ export function useStudies() {
 export interface DueItem {
   studyId: string;
   card: Card;
+}
+
+export function studyItems(study: Study): DueItem[] {
+  return study.cards.map((card) => ({ studyId: study.id, card }));
+}
+
+export function chapterItems(study: Study, idx: number): DueItem[] {
+  return study.cards
+    .filter((c) => c.chapterIdx === idx)
+    .map((card) => ({ studyId: study.id, card }));
+}
+
+// For "Practice position": only positions reached after at least 3 plies,
+// shuffled, capped so it stays a quick recognition game.
+export function positionItems(items: DueItem[], limit = 20): DueItem[] {
+  const eligible = items.filter(
+    (it) => it.card.line.split(/\s+/).filter(Boolean).length >= 3,
+  );
+  for (let i = eligible.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [eligible[i], eligible[j]] = [eligible[j], eligible[i]];
+  }
+  return eligible.slice(0, limit);
 }
 
 export function dueCards(studies: Study[]): DueItem[] {

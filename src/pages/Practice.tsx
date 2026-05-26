@@ -1,20 +1,44 @@
-import { isDue } from "../srs";
-import { dueCount } from "../stats";
+import { dueCount, retention } from "../stats";
+import { LEVEL_NAMES } from "../srs";
+import {
+  chapterItems,
+  dueCards,
+  positionItems,
+  studyItems,
+  type DueItem,
+} from "../useStudies";
+import type { DrillMode } from "./Drill";
 import type { Study } from "../types";
 
 interface Props {
   studies: Study[];
-  onReviewDue: () => void;
-  onPracticeStudy: (id: string) => void;
+  onStart: (items: DueItem[], mode: DrillMode) => void;
   onImport: () => void;
 }
 
-export function Practice({
-  studies,
-  onReviewDue,
-  onPracticeStudy,
-  onImport,
-}: Props) {
+function LevelBar({ cards }: { cards: Study["cards"] }) {
+  const r = retention(cards);
+  if (r.total === 0) return null;
+  return (
+    <div className="levels">
+      <div className="level-bar">
+        {r.levels.map((count, i) =>
+          count > 0 ? (
+            <span
+              key={i}
+              className={`level-seg lvl-${i}`}
+              style={{ width: `${(count / r.total) * 100}%` }}
+              title={`${LEVEL_NAMES[i]}: ${count}`}
+            />
+          ) : null,
+        )}
+      </div>
+      <span className="muted small">{r.retainedPct}% retained</span>
+    </div>
+  );
+}
+
+export function Practice({ studies, onStart, onImport }: Props) {
   if (studies.length === 0) {
     return (
       <div className="page center">
@@ -28,38 +52,65 @@ export function Practice({
   }
 
   const totalDue = dueCount(studies);
-  const now = new Date();
 
   return (
     <div className="page">
       <h2>Practice</h2>
 
-      <button className="primary big" disabled={totalDue === 0} onClick={onReviewDue}>
+      <button
+        className="primary big"
+        disabled={totalDue === 0}
+        onClick={() => onStart(dueCards(studies), "line")}
+      >
         {totalDue === 0 ? "All caught up" : `Review all due (${totalDue})`}
       </button>
 
-      <section>
-        <h3 className="section-label">Or practice one opening</h3>
-        <ul className="list">
-          {studies.map((s) => {
-            const due = s.cards.filter((c) => isDue(c.fsrs, now)).length;
-            return (
-              <li key={s.id} className="list-item">
-                <div>
-                  <div className="list-title">{s.name}</div>
-                  <div className="muted small">
-                    {s.cards.length} positions · plays {s.orientation}
-                    {due > 0 ? ` · ${due} due` : ""}
+      {studies.map((s) => (
+        <section key={s.id} className="study-card">
+          <div className="list-title">{s.name}</div>
+          <div className="muted small">
+            {s.cards.length} positions · plays {s.orientation}
+          </div>
+          <LevelBar cards={s.cards} />
+
+          <div className="practice-modes">
+            <button onClick={() => onStart(studyItems(s), "line")}>
+              Practice line
+            </button>
+            <button
+              onClick={() => onStart(positionItems(studyItems(s)), "position")}
+            >
+              Practice position
+            </button>
+          </div>
+
+          {s.chapters.length > 1 && (
+            <ul className="chapter-list">
+              {s.chapters.map((ch, i) => (
+                <li key={i} className="chapter-row">
+                  <span className="muted small chapter-name">{ch.name}</span>
+                  <div className="chapter-actions">
+                    <button
+                      className="link small"
+                      onClick={() => onStart(chapterItems(s, i), "line")}
+                    >
+                      Line
+                    </button>
+                    <button
+                      className="link small"
+                      onClick={() =>
+                        onStart(positionItems(chapterItems(s, i)), "position")
+                      }
+                    >
+                      Position
+                    </button>
                   </div>
-                </div>
-                <button className="primary" onClick={() => onPracticeStudy(s.id)}>
-                  Practice
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      ))}
     </div>
   );
 }

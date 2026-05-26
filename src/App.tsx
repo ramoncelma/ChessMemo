@@ -4,9 +4,9 @@ import { Practice } from "./pages/Practice";
 import { ReadList } from "./pages/ReadList";
 import { ReadView } from "./pages/ReadView";
 import { Import } from "./pages/Import";
-import { Drill } from "./pages/Drill";
+import { Drill, type DrillMode } from "./pages/Drill";
 import { Settings } from "./pages/Settings";
-import { useStudies, dueCards, type DueItem } from "./useStudies";
+import { useStudies, type DueItem } from "./useStudies";
 import { useSettings } from "./settings";
 
 type Tab = "dashboard" | "practice" | "read" | "import" | "settings" | "drill";
@@ -19,12 +19,20 @@ export default function App() {
     removeStudy,
     updateCard,
     renameStudy,
+    renameChapter,
     addChapter,
   } = useStudies();
-  const { settings, setBoardTheme, setPieceSet, setTheme } = useSettings();
+  const {
+    settings,
+    setBoardTheme,
+    setPieceSet,
+    setTheme,
+    setPositionMissResetsLine,
+  } = useSettings();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [readingId, setReadingId] = useState<string | null>(null);
   const [drillItems, setDrillItems] = useState<DueItem[]>([]);
+  const [drillMode, setDrillMode] = useState<DrillMode>("line");
 
   if (!loaded) {
     return <div className="page center muted">Loading…</div>;
@@ -32,16 +40,16 @@ export default function App() {
 
   const readingStudy = studies.find((s) => s.id === readingId) ?? null;
 
-  function reviewAllDue() {
-    setDrillItems(dueCards(studies));
+  function startDrill(items: DueItem[], mode: DrillMode) {
+    setDrillItems(items);
+    setDrillMode(mode);
     setTab("drill");
   }
 
   function practiceStudy(id: string) {
     const study = studies.find((s) => s.id === id);
     if (!study) return;
-    setDrillItems(study.cards.map((card) => ({ studyId: id, card })));
-    setTab("drill");
+    startDrill(study.cards.map((card) => ({ studyId: id, card })), "line");
   }
 
   function openRead(id: string) {
@@ -69,8 +77,7 @@ export default function App() {
         {tab === "practice" && (
           <Practice
             studies={studies}
-            onReviewDue={reviewAllDue}
-            onPracticeStudy={practiceStudy}
+            onStart={startDrill}
             onImport={() => setTab("import")}
           />
         )}
@@ -95,6 +102,7 @@ export default function App() {
             addStudy={addStudy}
             addChapter={addChapter}
             renameStudy={renameStudy}
+            renameChapter={renameChapter}
             removeStudy={removeStudy}
             onDone={() => setTab("dashboard")}
           />
@@ -105,11 +113,13 @@ export default function App() {
             setBoardTheme={setBoardTheme}
             setPieceSet={setPieceSet}
             setTheme={setTheme}
+            setPositionMissResetsLine={setPositionMissResetsLine}
           />
         )}
         {tab === "drill" && (
           <Drill
             items={drillItems}
+            mode={drillMode}
             studies={studies}
             settings={settings}
             updateCard={updateCard}

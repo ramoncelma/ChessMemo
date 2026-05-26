@@ -8,6 +8,7 @@ interface Props {
   addStudy: (study: Study) => void;
   addChapter: (id: string, chapter: Chapter, cards: Card[]) => void;
   renameStudy: (id: string, name: string) => void;
+  renameChapter: (id: string, idx: number, name: string) => void;
   removeStudy: (id: string) => void;
   onDone: () => void;
 }
@@ -23,6 +24,7 @@ export function Import({
   addStudy,
   addChapter,
   renameStudy,
+  renameChapter,
   removeStudy,
   onDone,
 }: Props) {
@@ -43,9 +45,10 @@ export function Import({
       return;
     }
     const side = isNew ? orientation : (existing?.orientation ?? "white");
+    const chapterIdx = isNew ? 0 : (existing?.chapters.length ?? 0);
     let cards: Card[];
     try {
-      cards = buildCards(text, side);
+      cards = buildCards(text, side, chapterIdx);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not read that PGN.");
       return;
@@ -161,34 +164,46 @@ export function Import({
           <h3 className="section-label">Manage openings</h3>
           <ul className="list">
             {studies.map((s) => (
-              <li key={s.id} className="list-item">
-                <div>
+              <li key={s.id} className="study-card">
+                <div className="study-head">
                   <div className="list-title">{s.name}</div>
-                  <div className="muted small">
-                    {s.chapters.length} chapter
-                    {s.chapters.length === 1 ? "" : "s"} · {s.cards.length}{" "}
-                    positions
+                  <div className="list-aside">
+                    <button
+                      className="link small"
+                      onClick={() => {
+                        const next = prompt("Rename opening", s.name);
+                        if (next && next.trim()) renameStudy(s.id, next.trim());
+                      }}
+                    >
+                      Rename
+                    </button>
+                    <button
+                      className="link danger small"
+                      onClick={() => {
+                        if (confirm(`Delete "${s.name}"?`)) removeStudy(s.id);
+                      }}
+                    >
+                      Delete
+                    </button>
                   </div>
                 </div>
-                <div className="list-aside">
-                  <button
-                    className="link small"
-                    onClick={() => {
-                      const next = prompt("Rename opening", s.name);
-                      if (next && next.trim()) renameStudy(s.id, next.trim());
-                    }}
-                  >
-                    Rename
-                  </button>
-                  <button
-                    className="link danger small"
-                    onClick={() => {
-                      if (confirm(`Delete "${s.name}"?`)) removeStudy(s.id);
-                    }}
-                  >
-                    Delete
-                  </button>
-                </div>
+                <ul className="chapter-list">
+                  {s.chapters.map((ch, i) => (
+                    <li key={i} className="chapter-row">
+                      <span className="muted small">{ch.name}</span>
+                      <button
+                        className="link small"
+                        onClick={() => {
+                          const next = prompt("Rename chapter", ch.name);
+                          if (next && next.trim())
+                            renameChapter(s.id, i, next.trim());
+                        }}
+                      >
+                        Rename
+                      </button>
+                    </li>
+                  ))}
+                </ul>
               </li>
             ))}
           </ul>

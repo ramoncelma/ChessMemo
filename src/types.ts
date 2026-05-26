@@ -12,6 +12,7 @@ export interface Card {
   answerTo: string;
   promotion?: string;
   line: string; // moves played so far, for context
+  chapterIdx: number;
   attempts: number;
   misses: number;
   fsrs: FsrsCard;

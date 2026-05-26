@@ -15,6 +15,7 @@ function normalize(studies: Study[]): Study[] {
       chapters,
       cards: s.cards.map((c) => ({
         ...c,
+        chapterIdx: c.chapterIdx ?? 0,
         attempts: c.attempts ?? 0,
         misses: c.misses ?? 0,
       })),

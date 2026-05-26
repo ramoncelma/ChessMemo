@@ -1,6 +1,28 @@
-import { isDue } from "./srs";
+import { cardLevel, isDue, LEVEL_NAMES, RETAINED_LEVEL } from "./srs";
 import type { ReviewEntry } from "./storage";
 import type { Card, Study } from "./types";
+
+export interface Retention {
+  levels: number[]; // count of cards per level
+  retainedPct: number; // 0..100
+  total: number;
+}
+
+export function retention(cards: Card[]): Retention {
+  const levels = new Array(LEVEL_NAMES.length).fill(0);
+  let retained = 0;
+  for (const c of cards) {
+    const lvl = cardLevel(c.fsrs);
+    levels[lvl]++;
+    if (lvl >= RETAINED_LEVEL) retained++;
+  }
+  const total = cards.length;
+  return {
+    levels,
+    total,
+    retainedPct: total === 0 ? 0 : Math.round((retained / total) * 100),
+  };
+}
 
 export function dueCount(studies: Study[], now = new Date()): number {
   let n = 0;

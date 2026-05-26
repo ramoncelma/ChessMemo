@@ -11,6 +11,7 @@ interface Props {
   onDrop: (from: string, to: string) => boolean;
   boardThemeId: string;
   pieceSet: PieceSet;
+  hintSquare?: string;
 }
 
 const PIECE_CODES = [
@@ -45,6 +46,7 @@ export function Board({
   onDrop,
   boardThemeId,
   pieceSet,
+  hintSquare,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(320);
@@ -119,6 +121,11 @@ export function Board({
   }
 
   const squareStyles: Record<string, React.CSSProperties> = {};
+  if (hintSquare) {
+    squareStyles[hintSquare] = {
+      boxShadow: "inset 0 0 0 4px rgba(240, 180, 0, 0.9)",
+    };
+  }
   if (selected) {
     squareStyles[selected] = { background: "rgba(91,157,255,0.45)" };
     for (const t of legalTargets) {

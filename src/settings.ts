@@ -35,12 +35,14 @@ export interface Settings {
   boardThemeId: string;
   pieceSet: PieceSet;
   theme: Theme;
+  positionMissResetsLine: boolean;
 }
 
 const DEFAULTS: Settings = {
   boardThemeId: "green",
   pieceSet: "cburnett",
   theme: "light",
+  positionMissResetsLine: false,
 };
 const KEY = "chessmemo.settings";
 
@@ -69,6 +71,8 @@ export function useSettings() {
     setPieceSet: (pieceSet: PieceSet) =>
       setSettings((s) => ({ ...s, pieceSet })),
     setTheme: (theme: Theme) => setSettings((s) => ({ ...s, theme })),
+    setPositionMissResetsLine: (positionMissResetsLine: boolean) =>
+      setSettings((s) => ({ ...s, positionMissResetsLine })),
   };
 }
 
