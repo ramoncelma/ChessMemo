@@ -1,23 +1,24 @@
 import { dueCount, retention } from "../stats";
 import { LEVEL_NAMES } from "../srs";
 import {
-  chapterItems,
-  dueCards,
-  positionItems,
-  studyItems,
-  type DueItem,
+  buildPositions,
+  chapterLineItems,
+  dueLines,
+  lineItemsOf,
+  type LineItem,
+  type PositionItem,
 } from "../useStudies";
-import type { DrillMode } from "./Drill";
-import type { Study } from "../types";
+import type { Line, Study } from "../types";
 
 interface Props {
   studies: Study[];
-  onStart: (items: DueItem[], mode: DrillMode) => void;
+  onStartLine: (items: LineItem[]) => void;
+  onStartPosition: (positions: PositionItem[]) => void;
   onImport: () => void;
 }
 
-function LevelBar({ cards }: { cards: Study["cards"] }) {
-  const r = retention(cards);
+function LevelBar({ lines }: { lines: Line[] }) {
+  const r = retention(lines);
   if (r.total === 0) return null;
   return (
     <div className="levels">
@@ -38,7 +39,12 @@ function LevelBar({ cards }: { cards: Study["cards"] }) {
   );
 }
 
-export function Practice({ studies, onStart, onImport }: Props) {
+export function Practice({
+  studies,
+  onStartLine,
+  onStartPosition,
+  onImport,
+}: Props) {
   if (studies.length === 0) {
     return (
       <div className="page center">
@@ -60,7 +66,7 @@ export function Practice({ studies, onStart, onImport }: Props) {
       <button
         className="primary big"
         disabled={totalDue === 0}
-        onClick={() => onStart(dueCards(studies), "line")}
+        onClick={() => onStartLine(dueLines(studies))}
       >
         {totalDue === 0 ? "All caught up" : `Review all due (${totalDue})`}
       </button>
@@ -69,16 +75,16 @@ export function Practice({ studies, onStart, onImport }: Props) {
         <section key={s.id} className="study-card">
           <div className="list-title">{s.name}</div>
           <div className="muted small">
-            {s.cards.length} positions · plays {s.orientation}
+            {s.lines.length} lines · plays {s.orientation}
           </div>
-          <LevelBar cards={s.cards} />
+          <LevelBar lines={s.lines} />
 
           <div className="practice-modes">
-            <button onClick={() => onStart(studyItems(s), "line")}>
+            <button onClick={() => onStartLine(lineItemsOf(s))}>
               Practice line
             </button>
             <button
-              onClick={() => onStart(positionItems(studyItems(s)), "position")}
+              onClick={() => onStartPosition(buildPositions(s, lineItemsOf(s)))}
             >
               Practice position
             </button>
@@ -92,14 +98,16 @@ export function Practice({ studies, onStart, onImport }: Props) {
                   <div className="chapter-actions">
                     <button
                       className="link small"
-                      onClick={() => onStart(chapterItems(s, i), "line")}
+                      onClick={() => onStartLine(chapterLineItems(s, i))}
                     >
                       Line
                     </button>
                     <button
                       className="link small"
                       onClick={() =>
-                        onStart(positionItems(chapterItems(s, i)), "position")
+                        onStartPosition(
+                          buildPositions(s, chapterLineItems(s, i)),
+                        )
                       }
                     >
                       Position

@@ -1,37 +1,31 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Chess } from "chess.js";
 import { Board } from "../components/Board";
 import { grade } from "../srs";
-import { appendReview } from "../storage";
-import { lichessAnalysisUrl } from "../lichess";
-import { type DueItem } from "../useStudies";
-import type { Card, Orientation, Study } from "../types";
+import { type PositionItem } from "../useStudies";
+import type { Line, Study } from "../types";
 import type { Settings } from "../settings";
 
-export type DrillMode = "line" | "position";
-
 interface Props {
-  items: DueItem[];
-  mode: DrillMode;
+  positions: PositionItem[];
   studies: Study[];
   settings: Settings;
-  updateCard: (studyId: string, card: Card) => void;
+  updateLine: (studyId: string, line: Line) => void;
   onDone: () => void;
 }
 
 type Phase = "awaiting" | "correct" | "wrong";
 
-export function Drill({
-  items,
-  mode,
+export function PositionDrill({
+  positions,
   studies,
   settings,
-  updateCard,
+  updateLine,
   onDone,
 }: Props) {
-  const [queue] = useState<DueItem[]>(() => items);
+  const [queue] = useState<PositionItem[]>(() => positions);
   const [index, setIndex] = useState(0);
-  const [backlog, setBacklog] = useState<DueItem[]>([]);
+  const [backlog, setBacklog] = useState<PositionItem[]>([]);
   const [phase, setPhase] = useState<Phase>("awaiting");
   const [hinted, setHinted] = useState(false);
   const [answered, setAnswered] = useState(0);
@@ -39,13 +33,6 @@ export function Drill({
 
   const inMain = index < queue.length;
   const current = inMain ? queue[index] : (backlog[0] ?? null);
-  const retrying = !inMain && backlog.length > 0;
-  const card = current?.card ?? null;
-
-  const orientation: Orientation = useMemo(() => {
-    const study = studies.find((s) => s.id === current?.studyId);
-    return study?.orientation ?? "white";
-  }, [studies, current]);
 
   useEffect(() => {
     if (phase !== "correct") return;
@@ -54,23 +41,15 @@ export function Drill({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase, index, backlog]);
 
-  const shownFen = useMemo(() => {
-    if (!card) return "";
-    if (phase === "awaiting") return card.fen;
-    const probe = new Chess(card.fen);
-    probe.move({ from: card.answerFrom, to: card.answerTo, promotion: "q" });
-    return probe.fen();
-  }, [card, phase]);
-
-  if (!current || !card) {
+  if (!current) {
     const pct = answered ? Math.round((cleanCount / answered) * 100) : 0;
     return (
       <div className="page center">
         <div className="done-card">
-          <div className="done-emoji">♟</div>
+          <div className="done-emoji">🎯</div>
           <h2>Session complete</h2>
           <p className="muted">
-            {answered} answered{answered ? ` · ${pct}% clean first-try` : ""}
+            {answered} positions{answered ? ` · ${pct}% first try` : ""}
           </p>
           <button className="primary big" onClick={onDone}>
             Back home
@@ -80,57 +59,54 @@ export function Drill({
     );
   }
 
+  const fen =
+    phase === "awaiting"
+      ? current.fenBefore
+      : (() => {
+          const p = new Chess(current.fenBefore);
+          p.move({ from: current.from, to: current.to, promotion: "q" });
+          return p.fen();
+        })();
+
   function resolve(success: boolean) {
     const clean = success && !hinted;
     const item = current!;
-    const c = item.card;
 
     if (inMain) {
-      if (mode === "line") {
-        updateCard(item.studyId, {
-          ...c,
-          attempts: c.attempts + 1,
-          misses: c.misses + (clean ? 0 : 1),
-          fsrs: grade(c.fsrs, clean ? "good" : "again"),
-        });
-        void appendReview(clean);
-      } else if (!clean && settings.positionMissResetsLine) {
-        // Position mode normally doesn't touch scheduling, but the user can opt
-        // to have a miss bump the line back to the starting bucket.
-        updateCard(item.studyId, {
-          ...c,
-          attempts: c.attempts + 1,
-          misses: c.misses + 1,
-          fsrs: grade(c.fsrs, "again"),
-        });
+      // No scheduling effect by default. Optionally a miss resets the whole
+      // line to the start of the cycle.
+      if (!clean && settings.positionMissResetsLine) {
+        const study = studies.find((s) => s.id === item.studyId);
+        const line = study?.lines.find((l) => l.id === item.lineId);
+        if (study && line) {
+          updateLine(study.id, {
+            ...line,
+            attempts: line.attempts + 1,
+            misses: line.misses + 1,
+            fsrs: grade(line.fsrs, "again"),
+          });
+        }
       }
       if (!clean) setBacklog((b) => [...b, item]);
       setIndex((i) => i + 1);
       setAnswered((n) => n + 1);
       if (clean) setCleanCount((n) => n + 1);
     } else {
-      // Retry round: cycle until the move is produced cleanly. No scheduling
-      // change here — the first attempt already set that.
       setBacklog((b) => (clean ? b.slice(1) : [...b.slice(1), b[0]]));
     }
-
     setHinted(false);
     setPhase("awaiting");
   }
 
   function handleDrop(from: string, to: string): boolean {
     if (phase !== "awaiting") return false;
-    const probe = new Chess(card!.fen);
+    const probe = new Chess(current!.fenBefore);
     try {
       probe.move({ from, to, promotion: "q" });
     } catch {
       return false;
     }
-    if (from === card!.answerFrom && to === card!.answerTo) {
-      setPhase("correct");
-    } else {
-      setPhase("wrong");
-    }
+    setPhase(from === current!.from && to === current!.to ? "correct" : "wrong");
     return true;
   }
 
@@ -151,32 +127,23 @@ export function Drill({
         </span>
       </div>
 
-      {retrying && (
-        <p className="retry-banner">Second chance — fix your misses</p>
-      )}
-
-      {mode === "line" && (
-        <div className="line-context">{card.line || "Starting position"}</div>
-      )}
-      {mode === "position" && (
-        <div className="line-context">Find the move for this position</div>
-      )}
+      <div className="line-context">Guess the move for this position</div>
 
       <Board
-        fen={shownFen}
-        orientation={orientation}
+        fen={fen}
+        orientation={current.orientation}
         draggable={phase === "awaiting"}
         onDrop={handleDrop}
         boardThemeId={settings.boardThemeId}
         pieceSet={settings.pieceSet}
-        hintSquare={hinted && phase === "awaiting" ? card.answerFrom : undefined}
+        hintSquare={hinted && phase === "awaiting" ? current.from : undefined}
       />
 
       <div className="drill-status">
         {phase === "awaiting" && (
           <div className="awaiting-row">
             <span className="turn-pill">
-              {orientation === "white" ? "White" : "Black"} to move
+              {current.orientation === "white" ? "White" : "Black"} to move
             </span>
             <button
               className="hint-btn"
@@ -189,24 +156,16 @@ export function Drill({
         )}
         {phase === "correct" && (
           <span className={`result ${hinted ? "wrong" : "correct"}`}>
-            {hinted ? "Hinted —" : "✓"} {card.answerSan}
+            {hinted ? "Hinted —" : "✓"} {current.san}
           </span>
         )}
         {phase === "wrong" && (
           <div className="wrong-block">
             <span className="result wrong">
-              ✕ The line plays <b>{card.answerSan}</b>
+              ✕ Best move was <b>{current.san}</b>
             </span>
-            <a
-              className="analyze-link"
-              href={lichessAnalysisUrl(card.line, orientation)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Analyze on Lichess ↗
-            </a>
             <button className="primary big" onClick={() => resolve(false)}>
-              Got it — next
+              Next
             </button>
           </div>
         )}

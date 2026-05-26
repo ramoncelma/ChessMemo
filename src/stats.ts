@@ -1,22 +1,22 @@
 import { cardLevel, isDue, LEVEL_NAMES, RETAINED_LEVEL } from "./srs";
 import type { ReviewEntry } from "./storage";
-import type { Card, Study } from "./types";
+import type { Line, Study } from "./types";
 
 export interface Retention {
-  levels: number[]; // count of cards per level
+  levels: number[]; // count of lines per level
   retainedPct: number; // 0..100
   total: number;
 }
 
-export function retention(cards: Card[]): Retention {
+export function retention(lines: Line[]): Retention {
   const levels = new Array(LEVEL_NAMES.length).fill(0);
   let retained = 0;
-  for (const c of cards) {
-    const lvl = cardLevel(c.fsrs);
+  for (const l of lines) {
+    const lvl = cardLevel(l.fsrs);
     levels[lvl]++;
     if (lvl >= RETAINED_LEVEL) retained++;
   }
-  const total = cards.length;
+  const total = lines.length;
   return {
     levels,
     total,
@@ -26,16 +26,15 @@ export function retention(cards: Card[]): Retention {
 
 export function dueCount(studies: Study[], now = new Date()): number {
   let n = 0;
-  for (const s of studies) for (const c of s.cards) if (isDue(c.fsrs, now)) n++;
+  for (const s of studies) for (const l of s.lines) if (isDue(l.fsrs, now)) n++;
   return n;
 }
 
-// Soonest future review time across all not-yet-due cards.
 export function nextReviewAt(studies: Study[], now = new Date()): Date | null {
   let soonest: number | null = null;
   for (const s of studies) {
-    for (const c of s.cards) {
-      const due = new Date(c.fsrs.due).getTime();
+    for (const l of s.lines) {
+      const due = new Date(l.fsrs.due).getTime();
       if (due > now.getTime() && (soonest === null || due < soonest)) {
         soonest = due;
       }
@@ -56,34 +55,15 @@ export function formatCountdown(target: Date, now = new Date()): string {
   return `${Math.round(days / 30)}mo`;
 }
 
-export function accuracy(cards: Card[]): number | null {
+export function accuracy(lines: Line[]): number | null {
   let attempts = 0;
   let misses = 0;
-  for (const c of cards) {
-    attempts += c.attempts;
-    misses += c.misses;
+  for (const l of lines) {
+    attempts += l.attempts;
+    misses += l.misses;
   }
   if (attempts === 0) return null;
   return Math.round(((attempts - misses) / attempts) * 100);
-}
-
-export interface WeakSpot {
-  studyName: string;
-  card: Card;
-  rate: number; // miss rate 0..1
-}
-
-export function weakSpots(studies: Study[], limit = 6): WeakSpot[] {
-  const spots: WeakSpot[] = [];
-  for (const s of studies) {
-    for (const c of s.cards) {
-      if (c.attempts >= 2 && c.misses > 0) {
-        spots.push({ studyName: s.name, card: c, rate: c.misses / c.attempts });
-      }
-    }
-  }
-  spots.sort((a, b) => b.rate - a.rate || b.card.misses - a.card.misses);
-  return spots.slice(0, limit);
 }
 
 function dayKey(ts: number): string {
@@ -96,32 +76,12 @@ export function currentStreak(log: ReviewEntry[], now = new Date()): number {
   const days = new Set(log.map((e) => dayKey(e.ts)));
   let streak = 0;
   const cursor = new Date(now);
-  // If nothing today, the streak can still be alive from yesterday.
   if (!days.has(dayKey(cursor.getTime()))) cursor.setDate(cursor.getDate() - 1);
   while (days.has(dayKey(cursor.getTime()))) {
     streak++;
     cursor.setDate(cursor.getDate() - 1);
   }
   return streak;
-}
-
-export interface DayActivity {
-  label: string;
-  count: number;
-}
-
-// Reviews per day for the last `days` days, oldest first.
-export function activity(log: ReviewEntry[], days = 7, now = new Date()): DayActivity[] {
-  const counts = new Map<string, number>();
-  for (const e of log) counts.set(dayKey(e.ts), (counts.get(dayKey(e.ts)) ?? 0) + 1);
-  const out: DayActivity[] = [];
-  const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  for (let i = days - 1; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    out.push({ label: labels[d.getDay()], count: counts.get(dayKey(d.getTime())) ?? 0 });
-  }
-  return out;
 }
 
 export function totalReviews(log: ReviewEntry[]): number {
@@ -135,8 +95,7 @@ export interface ForecastDay {
   today: boolean;
 }
 
-// How many positions come due on each of the next `days` days (overdue and
-// due-today both fall on day 0). Gives a schematic "when to come back" view.
+// How many lines come due on each of the next `days` days.
 export function forecast(studies: Study[], days = 14, now = new Date()): ForecastDay[] {
   const dayMs = 86400000;
   const todayMid = new Date(now);
@@ -145,8 +104,8 @@ export function forecast(studies: Study[], days = 14, now = new Date()): Forecas
   const buckets = new Array(days).fill(0);
 
   for (const s of studies) {
-    for (const c of s.cards) {
-      const dm = new Date(c.fsrs.due);
+    for (const l of s.lines) {
+      const dm = new Date(l.fsrs.due);
       dm.setHours(0, 0, 0, 0);
       let idx = Math.round((dm.getTime() - base) / dayMs);
       if (idx < 0) idx = 0;

@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { buildCards, chapterNameFromPgn, studyNameFromPgn } from "../pgn";
+import { buildLines, chapterNameFromPgn, studyNameFromPgn } from "../pgn";
 import { SAMPLE_PGN } from "../sample";
-import type { Card, Chapter, Orientation, Study } from "../types";
+import type { Chapter, Line, Orientation, Study } from "../types";
 
 interface Props {
   studies: Study[];
   addStudy: (study: Study) => void;
-  addChapter: (id: string, chapter: Chapter, cards: Card[]) => void;
+  addChapter: (id: string, chapter: Chapter, lines: Line[]) => void;
   renameStudy: (id: string, name: string) => void;
   renameChapter: (id: string, idx: number, name: string) => void;
   removeStudy: (id: string) => void;
@@ -46,15 +46,15 @@ export function Import({
     }
     const side = isNew ? orientation : (existing?.orientation ?? "white");
     const chapterIdx = isNew ? 0 : (existing?.chapters.length ?? 0);
-    let cards: Card[];
+    let lines: Line[];
     try {
-      cards = buildCards(text, side, chapterIdx);
+      lines = buildLines(text, side, chapterIdx);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Could not read that PGN.");
       return;
     }
-    if (cards.length === 0) {
-      setError("No moves found for your side — try the other colour.");
+    if (lines.length === 0) {
+      setError("No lines found for your side — try the other colour.");
       return;
     }
     const chapter: Chapter = {
@@ -69,10 +69,10 @@ export function Import({
         orientation: side,
         chapters: [chapter],
         createdAt: Date.now(),
-        cards,
+        lines,
       });
     } else if (existing) {
-      addChapter(existing.id, chapter, cards);
+      addChapter(existing.id, chapter, lines);
     }
     setPgn("");
     setName("");

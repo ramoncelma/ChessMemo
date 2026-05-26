@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { loadStudies, saveStudies } from "./storage";
 import { isDue } from "./srs";
-import type { Card, Chapter, Study } from "./types";
+import type { Chapter, Line, Orientation, Study } from "./types";
 
 export function useStudies() {
   const [studies, setStudies] = useState<Study[]>([]);
@@ -29,12 +29,12 @@ export function useStudies() {
     [studies, persist],
   );
 
-  const updateCard = useCallback(
-    (studyId: string, card: Card) => {
+  const updateLine = useCallback(
+    (studyId: string, line: Line) => {
       persist(
         studies.map((s) =>
           s.id === studyId
-            ? { ...s, cards: s.cards.map((c) => (c.id === card.id ? card : c)) }
+            ? { ...s, lines: s.lines.map((l) => (l.id === line.id ? line : l)) }
             : s,
         ),
       );
@@ -45,28 +45,6 @@ export function useStudies() {
   const renameStudy = useCallback(
     (id: string, name: string) =>
       persist(studies.map((s) => (s.id === id ? { ...s, name } : s))),
-    [studies, persist],
-  );
-
-  // Append a chapter and only the positions not already present (preserving
-  // existing scheduling progress).
-  const addChapter = useCallback(
-    (id: string, chapter: Chapter, newCards: Card[]) => {
-      persist(
-        studies.map((s) => {
-          if (s.id !== id) return s;
-          const seen = new Set(s.cards.map((c) => `${c.fen}|${c.answerSan}`));
-          const added = newCards.filter(
-            (c) => !seen.has(`${c.fen}|${c.answerSan}`),
-          );
-          return {
-            ...s,
-            chapters: [...s.chapters, chapter],
-            cards: [...s.cards, ...added],
-          };
-        }),
-      );
-    },
     [studies, persist],
   );
 
@@ -88,12 +66,32 @@ export function useStudies() {
     [studies, persist],
   );
 
+  // Append a chapter and only the lines not already present (by move sequence).
+  const addChapter = useCallback(
+    (id: string, chapter: Chapter, newLines: Line[]) => {
+      persist(
+        studies.map((s) => {
+          if (s.id !== id) return s;
+          const sig = (l: Line) => l.moves.map((m) => m.san).join(" ");
+          const seen = new Set(s.lines.map(sig));
+          const added = newLines.filter((l) => !seen.has(sig(l)));
+          return {
+            ...s,
+            chapters: [...s.chapters, chapter],
+            lines: [...s.lines, ...added],
+          };
+        }),
+      );
+    },
+    [studies, persist],
+  );
+
   return {
     studies,
     loaded,
     addStudy,
     removeStudy,
-    updateCard,
+    updateLine,
     renameStudy,
     renameChapter,
     addChapter,
@@ -101,45 +99,76 @@ export function useStudies() {
   };
 }
 
-export interface DueItem {
+export interface LineItem {
   studyId: string;
-  card: Card;
+  line: Line;
 }
 
-export function studyItems(study: Study): DueItem[] {
-  return study.cards.map((card) => ({ studyId: study.id, card }));
+export function lineItemsOf(study: Study): LineItem[] {
+  return study.lines.map((line) => ({ studyId: study.id, line }));
 }
 
-export function chapterItems(study: Study, idx: number): DueItem[] {
-  return study.cards
-    .filter((c) => c.chapterIdx === idx)
-    .map((card) => ({ studyId: study.id, card }));
+export function chapterLineItems(study: Study, idx: number): LineItem[] {
+  return study.lines
+    .filter((l) => l.chapterIdx === idx)
+    .map((line) => ({ studyId: study.id, line }));
 }
 
-// For "Practice position": only positions reached after at least 3 plies,
-// shuffled, capped so it stays a quick recognition game.
-export function positionItems(items: DueItem[], limit = 20): DueItem[] {
-  const eligible = items.filter(
-    (it) => it.card.line.split(/\s+/).filter(Boolean).length >= 3,
-  );
-  for (let i = eligible.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [eligible[i], eligible[j]] = [eligible[j], eligible[i]];
-  }
-  return eligible.slice(0, limit);
-}
-
-export function dueCards(studies: Study[]): DueItem[] {
+export function dueLines(studies: Study[]): LineItem[] {
   const now = new Date();
-  const items: DueItem[] = [];
+  const items: LineItem[] = [];
   for (const s of studies) {
-    for (const c of s.cards) {
-      if (isDue(c.fsrs, now)) items.push({ studyId: s.id, card: c });
+    for (const line of s.lines) {
+      if (isDue(line.fsrs, now)) items.push({ studyId: s.id, line });
     }
   }
   items.sort(
     (a, b) =>
-      new Date(a.card.fsrs.due).getTime() - new Date(b.card.fsrs.due).getTime(),
+      new Date(a.line.fsrs.due).getTime() - new Date(b.line.fsrs.due).getTime(),
   );
   return items;
+}
+
+export interface PositionItem {
+  studyId: string;
+  lineId: string;
+  orientation: Orientation;
+  fenBefore: string;
+  from: string;
+  to: string;
+  san: string;
+}
+
+// Random single-move positions (reached after 3+ plies) drawn from the given
+// lines — used by "Practice position".
+export function buildPositions(
+  study: Study,
+  items: LineItem[],
+  limit = 20,
+): PositionItem[] {
+  const want = study.orientation === "white" ? "w" : "b";
+  const all: PositionItem[] = [];
+  const seen = new Set<string>();
+  for (const it of items) {
+    it.line.moves.forEach((m, i) => {
+      if (m.color !== want || i < 3) return;
+      const key = `${m.fenBefore}|${m.san}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      all.push({
+        studyId: study.id,
+        lineId: it.line.id,
+        orientation: study.orientation,
+        fenBefore: m.fenBefore,
+        from: m.from,
+        to: m.to,
+        san: m.san,
+      });
+    });
+  }
+  for (let i = all.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [all[i], all[j]] = [all[j], all[i]];
+  }
+  return all.slice(0, limit);
 }

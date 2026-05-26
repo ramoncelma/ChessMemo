@@ -2,17 +2,23 @@ import type { Card as FsrsCard } from "ts-fsrs";
 
 export type Orientation = "white" | "black";
 
-// One thing to recall: the position (FEN) just before the trainee's move,
-// plus the move they are expected to play.
-export interface Card {
-  id: string;
-  fen: string;
-  answerSan: string;
-  answerFrom: string;
-  answerTo: string;
+// One move within a line.
+export interface LineMove {
+  san: string;
+  from: string;
+  to: string;
   promotion?: string;
-  line: string; // moves played so far, for context
+  color: "w" | "b";
+  fenBefore: string;
+  fenAfter: string;
+  comment?: string;
+}
+
+// A complete line (root to leaf) — the unit of spaced repetition.
+export interface Line {
+  id: string;
   chapterIdx: number;
+  moves: LineMove[];
   attempts: number;
   misses: number;
   fsrs: FsrsCard;
@@ -30,5 +36,5 @@ export interface Study {
   orientation: Orientation;
   chapters: Chapter[];
   createdAt: number;
-  cards: Card[];
+  lines: Line[];
 }

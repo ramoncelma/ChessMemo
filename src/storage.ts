@@ -1,25 +1,32 @@
 import { get, set } from "idb-keyval";
-import type { Chapter, Study } from "./types";
+import { buildLines } from "./pgn";
+import type { Chapter, Line, Study } from "./types";
 
 const STUDIES_KEY = "chessmemo.studies";
 const LOG_KEY = "chessmemo.reviewlog";
 
-// Normalize studies loaded from older versions that lacked some fields.
+// Normalize studies loaded from older versions. The spaced-repetition unit is
+// now the line; older data stored per-position cards, so rebuild lines from the
+// chapter PGNs (progress on the old cards can't be carried over).
 function normalize(studies: Study[]): Study[] {
   return studies.map((s) => {
     const legacyPgn = (s as { pgn?: string }).pgn;
     const chapters: Chapter[] =
       s.chapters ?? (legacyPgn ? [{ name: "Chapter 1", pgn: legacyPgn }] : []);
-    return {
-      ...s,
-      chapters,
-      cards: s.cards.map((c) => ({
-        ...c,
-        chapterIdx: c.chapterIdx ?? 0,
-        attempts: c.attempts ?? 0,
-        misses: c.misses ?? 0,
-      })),
-    };
+
+    let lines: Line[] = s.lines ?? [];
+    if (!s.lines) {
+      lines = [];
+      chapters.forEach((ch, i) => {
+        try {
+          lines.push(...buildLines(ch.pgn, s.orientation, i));
+        } catch {
+          // skip unparseable chapter
+        }
+      });
+    }
+
+    return { ...s, chapters, lines };
   });
 }
 

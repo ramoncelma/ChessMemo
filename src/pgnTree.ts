@@ -63,6 +63,21 @@ export function parsePgn(pgn: string): PgnTree {
   return tree;
 }
 
+// All complete root-to-leaf paths through the tree (each is one line).
+export function enumerateLines(tree: PgnTree): PgnNode[][] {
+  const out: PgnNode[][] = [];
+  const walk = (node: PgnNode, prefix: PgnNode[]) => {
+    const path = [...prefix, node];
+    if (node.children.length === 0) {
+      out.push(path);
+      return;
+    }
+    for (const child of node.children) walk(child, path);
+  };
+  for (const child of tree.children) walk(child, []);
+  return out;
+}
+
 function parseLevel(
   tokens: RegExpMatchArray[],
   cur: Cursor,

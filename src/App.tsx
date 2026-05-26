@@ -4,12 +4,18 @@ import { Practice } from "./pages/Practice";
 import { ReadList } from "./pages/ReadList";
 import { ReadView } from "./pages/ReadView";
 import { Import } from "./pages/Import";
-import { Drill, type DrillMode } from "./pages/Drill";
+import { LineDrill } from "./pages/LineDrill";
+import { PositionDrill } from "./pages/PositionDrill";
 import { Settings } from "./pages/Settings";
-import { useStudies, type DueItem } from "./useStudies";
+import { useStudies, type LineItem, type PositionItem } from "./useStudies";
 import { useSettings } from "./settings";
 
 type Tab = "dashboard" | "practice" | "read" | "import" | "settings" | "drill";
+
+type DrillState =
+  | { kind: "line"; items: LineItem[]; freeze: boolean }
+  | { kind: "position"; positions: PositionItem[] }
+  | null;
 
 export default function App() {
   const {
@@ -17,7 +23,7 @@ export default function App() {
     loaded,
     addStudy,
     removeStudy,
-    updateCard,
+    updateLine,
     renameStudy,
     renameChapter,
     addChapter,
@@ -31,8 +37,7 @@ export default function App() {
   } = useSettings();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [readingId, setReadingId] = useState<string | null>(null);
-  const [drillItems, setDrillItems] = useState<DueItem[]>([]);
-  const [drillMode, setDrillMode] = useState<DrillMode>("line");
+  const [drill, setDrill] = useState<DrillState>(null);
 
   if (!loaded) {
     return <div className="page center muted">Loading…</div>;
@@ -40,21 +45,19 @@ export default function App() {
 
   const readingStudy = studies.find((s) => s.id === readingId) ?? null;
 
-  function startDrill(items: DueItem[], mode: DrillMode) {
-    setDrillItems(items);
-    setDrillMode(mode);
+  function startLine(items: LineItem[], freeze = false) {
+    setDrill({ kind: "line", items, freeze });
     setTab("drill");
   }
 
-  function practiceStudy(id: string) {
-    const study = studies.find((s) => s.id === id);
-    if (!study) return;
-    startDrill(study.cards.map((card) => ({ studyId: id, card })), "line");
+  function startPosition(positions: PositionItem[]) {
+    setDrill({ kind: "position", positions });
+    setTab("drill");
   }
 
-  function openRead(id: string) {
-    setReadingId(id);
-    setTab("read");
+  function endDrill() {
+    setDrill(null);
+    setTab("dashboard");
   }
 
   const showTabbar = tab !== "drill";
@@ -77,7 +80,8 @@ export default function App() {
         {tab === "practice" && (
           <Practice
             studies={studies}
-            onStart={startDrill}
+            onStartLine={(items) => startLine(items, false)}
+            onStartPosition={startPosition}
             onImport={() => setTab("import")}
           />
         )}
@@ -87,12 +91,15 @@ export default function App() {
               study={readingStudy}
               settings={settings}
               onBack={() => setReadingId(null)}
-              onPractice={practiceStudy}
+              onPractice={startLine}
             />
           ) : (
             <ReadList
               studies={studies}
-              onRead={openRead}
+              onRead={(id) => {
+                setReadingId(id);
+                setTab("read");
+              }}
               onImport={() => setTab("import")}
             />
           ))}
@@ -116,14 +123,23 @@ export default function App() {
             setPositionMissResetsLine={setPositionMissResetsLine}
           />
         )}
-        {tab === "drill" && (
-          <Drill
-            items={drillItems}
-            mode={drillMode}
+        {tab === "drill" && drill?.kind === "line" && (
+          <LineDrill
+            items={drill.items}
             studies={studies}
             settings={settings}
-            updateCard={updateCard}
-            onDone={() => setTab("dashboard")}
+            updateLine={updateLine}
+            freezeOnSuccess={drill.freeze}
+            onDone={endDrill}
+          />
+        )}
+        {tab === "drill" && drill?.kind === "position" && (
+          <PositionDrill
+            positions={drill.positions}
+            studies={studies}
+            settings={settings}
+            updateLine={updateLine}
+            onDone={endDrill}
           />
         )}
       </main>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { loadReviewLog, type ReviewEntry } from "../storage";
 import { accuracy, currentStreak, dueCount, forecast, retention } from "../stats";
+import { LEVEL_NAMES } from "../srs";
 import type { Study } from "../types";
 
 interface Props {
@@ -11,7 +12,6 @@ interface Props {
   onSettings: () => void;
 }
 
-// Original, copyright-free line icons (CC0).
 const PracticeIcon = (
   <svg className="box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 12a9 9 0 1 1-3-6.7" />
@@ -46,17 +46,22 @@ export function Dashboard({
   onSettings,
 }: Props) {
   const [log, setLog] = useState<ReviewEntry[] | null>(null);
+  const [scope, setScope] = useState<string>("all");
 
   useEffect(() => {
     loadReviewLog().then(setLog);
   }, []);
 
-  const due = dueCount(studies);
-  const acc = accuracy(studies.flatMap((s) => s.cards));
+  const filtered =
+    scope === "all" ? studies : studies.filter((s) => s.id === scope);
+  const lines = filtered.flatMap((s) => s.lines);
+
+  const due = dueCount(filtered);
+  const acc = accuracy(lines);
   const streak = log ? currentStreak(log) : 0;
-  const hasCards = studies.some((s) => s.cards.length > 0);
-  const days = forecast(studies);
-  const retainedPct = retention(studies.flatMap((s) => s.cards)).retainedPct;
+  const r = retention(lines);
+  const hasLines = lines.length > 0;
+  const days = forecast(filtered);
 
   const base = import.meta.env.BASE_URL;
   const hideOnError = (e: React.SyntheticEvent<HTMLImageElement>) =>
@@ -65,23 +70,28 @@ export function Dashboard({
   return (
     <div className="page">
       <div className="dash-header">
-        <img
-          className="logo logo-light"
-          src={`${base}logo-light.png`}
-          alt=""
-          onError={hideOnError}
-        />
-        <img
-          className="logo logo-dark"
-          src={`${base}logo-dark.png`}
-          alt=""
-          onError={hideOnError}
-        />
+        <img className="logo logo-light" src={`${base}logo-light.png`} alt="" onError={hideOnError} />
+        <img className="logo logo-dark" src={`${base}logo-dark.png`} alt="" onError={hideOnError} />
         <div>
           <h1 className="brand">ChessMemo</h1>
           <p className="muted small">Your opening trainer</p>
         </div>
       </div>
+
+      {studies.length > 1 && (
+        <select
+          className="select"
+          value={scope}
+          onChange={(e) => setScope(e.target.value)}
+        >
+          <option value="all">All repertoires</option>
+          {studies.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+      )}
 
       <div className="stat-grid">
         <div className="stat-card">
@@ -97,21 +107,34 @@ export function Dashboard({
           <span className="muted small">day streak</span>
         </div>
         <div className="stat-card">
-          <span className="stat-value">{retainedPct}%</span>
+          <span className="stat-value">{r.retainedPct}%</span>
           <span className="muted small">retained</span>
         </div>
       </div>
 
-      {hasCards && (
+      {hasLines && (
         <section>
-          <h3 className="section-label">Review forecast</h3>
+          <h3 className="section-label">Memorization levels</h3>
+          <div className="level-list">
+            {LEVEL_NAMES.map((name, i) => (
+              <div key={i} className="level-item">
+                <span className={`level-dot lvl-${i}`} />
+                <span className="level-name">{name}</span>
+                <span className="level-count">{r.levels[i]}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {hasLines && (
+        <section>
+          <h3 className="section-label">Review calendar</h3>
           <div className="forecast">
             {days.map((d, i) => (
               <div
                 key={i}
-                className={`fc-cell ${d.today ? "today" : ""} ${
-                  d.count === 0 ? "empty" : ""
-                }`}
+                className={`fc-cell ${d.today ? "today" : ""} ${d.count === 0 ? "empty" : ""}`}
               >
                 <span className="fc-day">{d.label}</span>
                 <span className="fc-date">{d.date}</span>
@@ -126,9 +149,7 @@ export function Dashboard({
         <button className="box-card primary" onClick={onPractice}>
           {PracticeIcon}
           <span className="box-title">Practice</span>
-          <span className="box-sub">
-            {due > 0 ? `${due} due now` : "All caught up"}
-          </span>
+          <span className="box-sub">{due > 0 ? `${due} due now` : "All caught up"}</span>
         </button>
         <button className="box-card" onClick={onRead}>
           {ReadIcon}
