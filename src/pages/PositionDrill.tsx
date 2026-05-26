@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Chess } from "chess.js";
 import { Board } from "../components/Board";
-import { grade } from "../srs";
+import { resetLevel } from "../srs";
 import { type PositionItem } from "../useStudies";
 import type { Line, Study } from "../types";
 import type { Settings } from "../settings";
@@ -83,7 +83,7 @@ export function PositionDrill({
             ...line,
             attempts: line.attempts + 1,
             misses: line.misses + 1,
-            fsrs: grade(line.fsrs, "again"),
+            sched: resetLevel(),
           });
         }
       }

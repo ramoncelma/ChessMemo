@@ -1,4 +1,4 @@
-import { cardLevel, isDue, LEVEL_NAMES, RETAINED_LEVEL } from "./srs";
+import { isDue, LEVEL_NAMES, RETAINED_LEVEL } from "./srs";
 import type { ReviewEntry } from "./storage";
 import type { Line, Study } from "./types";
 
@@ -12,7 +12,7 @@ export function retention(lines: Line[]): Retention {
   const levels = new Array(LEVEL_NAMES.length).fill(0);
   let retained = 0;
   for (const l of lines) {
-    const lvl = cardLevel(l.fsrs);
+    const lvl = l.sched.level;
     levels[lvl]++;
     if (lvl >= RETAINED_LEVEL) retained++;
   }
@@ -24,20 +24,38 @@ export function retention(lines: Line[]): Retention {
   };
 }
 
-export function dueCount(studies: Study[], now = new Date()): number {
+export interface TimeSummary {
+  n: number;
+  avg: number;
+  min: number;
+  max: number;
+}
+
+export function summarizeTimes(times: number[]): TimeSummary | null {
+  if (times.length === 0) return null;
+  let sum = 0;
+  let min = Infinity;
+  let max = 0;
+  for (const t of times) {
+    sum += t;
+    if (t < min) min = t;
+    if (t > max) max = t;
+  }
+  return { n: times.length, avg: Math.round(sum / times.length), min, max };
+}
+
+export function dueCount(studies: Study[], now = Date.now()): number {
   let n = 0;
-  for (const s of studies) for (const l of s.lines) if (isDue(l.fsrs, now)) n++;
+  for (const s of studies) for (const l of s.lines) if (isDue(l.sched, now)) n++;
   return n;
 }
 
-export function nextReviewAt(studies: Study[], now = new Date()): Date | null {
+export function nextReviewAt(studies: Study[], now = Date.now()): Date | null {
   let soonest: number | null = null;
   for (const s of studies) {
     for (const l of s.lines) {
-      const due = new Date(l.fsrs.due).getTime();
-      if (due > now.getTime() && (soonest === null || due < soonest)) {
-        soonest = due;
-      }
+      const due = l.sched.due;
+      if (due > now && (soonest === null || due < soonest)) soonest = due;
     }
   }
   return soonest === null ? null : new Date(soonest);
@@ -105,7 +123,7 @@ export function forecast(studies: Study[], days = 14, now = new Date()): Forecas
 
   for (const s of studies) {
     for (const l of s.lines) {
-      const dm = new Date(l.fsrs.due);
+      const dm = new Date(l.sched.due);
       dm.setHours(0, 0, 0, 0);
       let idx = Math.round((dm.getTime() - base) / dayMs);
       if (idx < 0) idx = 0;

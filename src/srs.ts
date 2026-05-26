@@ -1,46 +1,58 @@
-import {
-  createEmptyCard,
-  fsrs,
-  generatorParameters,
-  Rating,
-  type Card as FsrsCard,
-  type Grade as FsrsGrade,
-} from "ts-fsrs";
+// Custom fixed-interval spaced repetition. The unit is a whole line. A clean
+// pass promotes the line one level (longer interval); a miss (wrong move, hint,
+// or a response slower than the timeout) sends it back to level 1.
 
-const scheduler = fsrs(generatorParameters({ enable_fuzz: true }));
+const HOUR = 3600_000;
+const DAY = 24 * HOUR;
 
-export function newCard(): FsrsCard {
-  return createEmptyCard(new Date());
+// Index = level. Level 0 = brand new (due immediately).
+export const LEVEL_INTERVALS_MS = [
+  0, // 0 New
+  8 * HOUR, // 1
+  2 * DAY, // 2
+  5 * DAY, // 3
+  14 * DAY, // 4
+  30 * DAY, // 5
+  60 * DAY, // 6
+  90 * DAY, // 7
+  180 * DAY, // 8
+];
+
+export const LEVEL_NAMES = [
+  "New",
+  "8 hours",
+  "2 days",
+  "5 days",
+  "2 weeks",
+  "1 month",
+  "2 months",
+  "3 months",
+  "6 months",
+];
+
+export const MAX_LEVEL = 8;
+export const RETAINED_LEVEL = 5; // "retained" = scheduled a month or more out
+export const RESPONSE_TIMEOUT_MS = 30_000;
+
+export interface Schedule {
+  level: number;
+  due: number; // timestamp
+  lastReview?: number;
 }
 
-export type Grade = "again" | "hard" | "good" | "easy";
-
-const ratingFor: Record<Grade, FsrsGrade> = {
-  again: Rating.Again,
-  hard: Rating.Hard,
-  good: Rating.Good,
-  easy: Rating.Easy,
-};
-
-export function grade(card: FsrsCard, g: Grade): FsrsCard {
-  return scheduler.next(card, new Date(), ratingFor[g]).card;
+export function newSchedule(now = Date.now()): Schedule {
+  return { level: 0, due: now };
 }
 
-export function isDue(card: FsrsCard, now = new Date()): boolean {
-  return new Date(card.due).getTime() <= now.getTime();
+export function isDue(s: Schedule, now = Date.now()): boolean {
+  return s.due <= now;
 }
 
-// Memorization levels derived from the FSRS schedule. Missed/hinted moves are
-// graded "again" so they keep a tiny interval and stay near the bottom; clean
-// moves grow their interval and climb.
-export const LEVEL_NAMES = ["New", "Learning", "Familiar", "Strong", "Retained"];
-export const RETAINED_LEVEL = 3;
+export function promote(s: Schedule, now = Date.now()): Schedule {
+  const level = Math.min(s.level + 1, MAX_LEVEL);
+  return { level, due: now + LEVEL_INTERVALS_MS[level], lastReview: now };
+}
 
-export function cardLevel(card: FsrsCard): number {
-  if (card.reps === 0) return 0;
-  const days = card.scheduled_days ?? 0;
-  if (days < 1) return 1;
-  if (days < 7) return 2;
-  if (days < 21) return 3;
-  return 4;
+export function resetLevel(now = Date.now()): Schedule {
+  return { level: 1, due: now + LEVEL_INTERVALS_MS[1], lastReview: now };
 }

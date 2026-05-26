@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Chess } from "chess.js";
 import { Board } from "../components/Board";
-import { grade } from "../srs";
+import { promote, resetLevel, RESPONSE_TIMEOUT_MS } from "../srs";
 import { appendReview } from "../storage";
 import { lichessAnalysisUrl } from "../lichess";
 import { type LineItem } from "../useStudies";
@@ -18,12 +18,15 @@ interface Props {
 }
 
 type Phase = "awaiting" | "wrong" | "done";
+type Timing = { idx: number; ms: number };
 
 function nextTrainee(line: Line, from: number, want: "w" | "b"): number {
   let i = from;
   while (i < line.moves.length && line.moves[i].color !== want) i++;
   return i;
 }
+
+const CAP = 20; // keep at most this many response times per bucket
 
 export function LineDrill({
   items,
@@ -43,6 +46,9 @@ export function LineDrill({
   const [lastClean, setLastClean] = useState(true);
   const [answered, setAnswered] = useState(0);
   const [cleanCount, setCleanCount] = useState(0);
+  const [pending, setPending] = useState<Timing[]>([]);
+  const [elapsed, setElapsed] = useState(0);
+  const moveStart = useRef(Date.now());
 
   const inMain = lineIdx < queue.length;
   const current = inMain ? queue[lineIdx] : (backlog[0] ?? null);
@@ -51,7 +57,20 @@ export function LineDrill({
     studies.find((s) => s.id === current?.studyId)?.orientation ?? "white";
   const want = orientation === "white" ? "w" : "b";
 
-  if (!current) {
+  const line = current?.line ?? null;
+  const tIdx = line ? nextTrainee(line, moveIdx, want) : 0;
+
+  // Start the response timer whenever a new move is presented.
+  useEffect(() => {
+    if (phase !== "awaiting" || !line) return;
+    moveStart.current = Date.now();
+    setElapsed(0);
+    const id = setInterval(() => setElapsed(Date.now() - moveStart.current), 250);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [phase, tIdx, lineIdx, backlog.length]);
+
+  if (!current || !line) {
     const pct = answered ? Math.round((cleanCount / answered) * 100) : 0;
     return (
       <div className="page center">
@@ -69,8 +88,6 @@ export function LineDrill({
     );
   }
 
-  const line = current.line;
-  const tIdx = nextTrainee(line, moveIdx, want);
   const move = line.moves[tIdx];
   const playedSans = line.moves.slice(0, tIdx).map((m) => m.san).join(" ");
 
@@ -79,39 +96,47 @@ export function LineDrill({
   else if (phase === "wrong") fen = move.fenAfter;
   else fen = move.fenBefore;
 
-  function finishLine() {
-    const clean = !mistake && !hinted;
+  function finishLine(localPending: Timing[], hadMistake: boolean) {
+    const clean = !hadMistake && !hinted;
     setLastClean(clean);
-    // Scheduling is decided on the first pass only; the retry round just makes
-    // the user produce the line cleanly without changing its schedule.
     if (inMain) {
       const l = current!.line;
+      // merge response times
+      const moveTimes: Record<number, number[]> = { ...l.moveTimes };
+      let total = 0;
+      for (const t of localPending) {
+        total += t.ms;
+        moveTimes[t.idx] = [...(moveTimes[t.idx] ?? []), t.ms].slice(-CAP);
+      }
+      const lineTimes = [...l.lineTimes, total].slice(-CAP);
+
+      let sched = l.sched;
+      let attempts = l.attempts + 1;
+      let misses = l.misses;
       if (clean) {
-        if (!freezeOnSuccess) {
-          updateLine(current!.studyId, {
-            ...l,
-            attempts: l.attempts + 1,
-            fsrs: grade(l.fsrs, "good"),
-          });
-        }
+        if (!freezeOnSuccess) sched = promote(l.sched);
         void appendReview(true);
       } else {
-        updateLine(current!.studyId, {
-          ...l,
-          attempts: l.attempts + 1,
-          misses: l.misses + 1,
-          fsrs: grade(l.fsrs, "again"),
-        });
+        sched = resetLevel();
+        misses += 1;
         void appendReview(false);
       }
+      updateLine(current!.studyId, {
+        ...l,
+        attempts,
+        misses,
+        sched,
+        lineTimes,
+        moveTimes,
+      });
     }
     setPhase("done");
   }
 
-  function advancePast(idx: number) {
-    const next = nextTrainee(line, idx + 1, want);
-    if (next >= line.moves.length) {
-      finishLine();
+  function advancePast(idx: number, localPending: Timing[], hadMistake: boolean) {
+    const next = nextTrainee(line!, idx + 1, want);
+    if (next >= line!.moves.length) {
+      finishLine(localPending, hadMistake);
     } else {
       setMoveIdx(idx + 1);
       setPhase("awaiting");
@@ -126,8 +151,15 @@ export function LineDrill({
     } catch {
       return false;
     }
+    const ms = Date.now() - moveStart.current;
+    const timedOut = ms > RESPONSE_TIMEOUT_MS;
+    const localPending = inMain ? [...pending, { idx: tIdx, ms }] : pending;
+    if (inMain) setPending(localPending);
+
     if (from === move.from && to === move.to) {
-      advancePast(tIdx);
+      const hadMistake = mistake || hinted || timedOut;
+      if (timedOut) setMistake(true);
+      advancePast(tIdx, localPending, hadMistake);
     } else {
       setMistake(true);
       setPhase("wrong");
@@ -147,12 +179,14 @@ export function LineDrill({
     setMoveIdx(0);
     setMistake(false);
     setHinted(false);
+    setPending([]);
     setPhase("awaiting");
   }
 
   const total = queue.length;
   const progress = inMain ? (lineIdx / total) * 100 : 100;
   const retrying = !inMain;
+  const over = elapsed > RESPONSE_TIMEOUT_MS;
 
   return (
     <div className="page drill">
@@ -188,6 +222,9 @@ export function LineDrill({
             <span className="turn-pill">
               {orientation === "white" ? "White" : "Black"} to move
             </span>
+            <span className={`timer ${over ? "over" : ""}`}>
+              ⏱ {(elapsed / 1000).toFixed(0)}s{over ? " · timed out" : ""}
+            </span>
             <button
               className="hint-btn"
               disabled={hinted}
@@ -211,7 +248,10 @@ export function LineDrill({
             >
               Analyze on Lichess ↗
             </a>
-            <button className="primary big" onClick={() => advancePast(tIdx)}>
+            <button
+              className="primary big"
+              onClick={() => advancePast(tIdx, pending, true)}
+            >
               Continue line
             </button>
           </div>

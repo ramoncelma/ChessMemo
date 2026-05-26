@@ -940,6 +940,47 @@ button.link.danger {
   font-weight: 600;
 }
 
+.timer {
+  font-variant-numeric: tabular-nums;
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
+.timer.over {
+  color: var(--bad);
+  font-weight: 700;
+}
+
+.time-stats {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.time-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.about p {
+  line-height: 1.55;
+  margin: 0 0 12px;
+}
+
+.level-legend {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  line-height: 1.4;
+}
+
 .retry-banner {
   text-align: center;
   margin: 0;
@@ -972,9 +1013,13 @@ button.link.danger {
 
 .lvl-0 { background: #8a98a8; }
 .lvl-1 { background: #e23b56; }
-.lvl-2 { background: #f08c00; }
-.lvl-3 { background: #74c476; }
-.lvl-4 { background: #1f9d4d; }
+.lvl-2 { background: #f0701f; }
+.lvl-3 { background: #f0a30a; }
+.lvl-4 { background: #d4c215; }
+.lvl-5 { background: #9fcf3a; }
+.lvl-6 { background: #74c476; }
+.lvl-7 { background: #3aa657; }
+.lvl-8 { background: #1f9d4d; }
 
 .practice-modes {
   display: flex;

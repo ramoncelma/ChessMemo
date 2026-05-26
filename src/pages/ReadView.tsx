@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Board } from "../components/Board";
 import { lichessAnalysisUrl } from "../lichess";
 import { isDue } from "../srs";
-import { formatCountdown } from "../stats";
+import { formatCountdown, summarizeTimes } from "../stats";
 import { type LineItem } from "../useStudies";
 import type { Line, Study } from "../types";
 import type { Settings } from "../settings";
@@ -60,7 +60,7 @@ export function ReadView({ study, settings, onBack, onPractice }: Props) {
 
       <ul className="list">
         {chapterLines.map((l) => {
-          const due = isDue(l.fsrs, now);
+          const due = isDue(l.sched, now.getTime());
           const sans = l.moves.map((m) => m.san).join(" ");
           return (
             <li key={l.id} className="line-row">
@@ -82,7 +82,7 @@ export function ReadView({ study, settings, onBack, onPractice }: Props) {
                 ) : (
                   <>
                     <span className="muted small">
-                      next {formatCountdown(new Date(l.fsrs.due), now)}
+                      next {formatCountdown(new Date(l.sched.due), now)}
                     </span>
                     <button
                       className="link small"
@@ -120,7 +120,12 @@ function LineBrowser({
   const fen = ply === 0 ? line.moves[0].fenBefore : line.moves[ply - 1].fenAfter;
   const playedSans = line.moves.slice(0, ply).map((m) => m.san).join(" ");
   const comment = ply > 0 ? line.moves[ply - 1].comment : undefined;
-  const due = isDue(line.fsrs);
+  const due = isDue(line.sched);
+
+  const lineStats = summarizeTimes(line.lineTimes);
+  const moveStats =
+    ply > 0 ? summarizeTimes(line.moveTimes[ply - 1] ?? []) : null;
+  const fmt = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
 
   return (
     <div className="page drill">
@@ -148,6 +153,31 @@ function LineBrowser({
       />
 
       {comment && <p className="read-comment">{comment}</p>}
+
+      {(lineStats || moveStats) && (
+        <div className="time-stats">
+          {lineStats && (
+            <div className="time-row">
+              <span className="muted small">Line ({lineStats.n})</span>
+              <span className="small">
+                avg {fmt(lineStats.avg)} · min {fmt(lineStats.min)} · max{" "}
+                {fmt(lineStats.max)}
+              </span>
+            </div>
+          )}
+          {moveStats && (
+            <div className="time-row">
+              <span className="muted small">
+                Move {line.moves[ply - 1].san} ({moveStats.n})
+              </span>
+              <span className="small">
+                avg {fmt(moveStats.avg)} · min {fmt(moveStats.min)} · max{" "}
+                {fmt(moveStats.max)}
+              </span>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="read-controls">
         <button className="nav-btn" disabled={ply === 0} onClick={() => setPly(0)}>

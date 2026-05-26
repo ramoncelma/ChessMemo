@@ -115,17 +115,14 @@ export function chapterLineItems(study: Study, idx: number): LineItem[] {
 }
 
 export function dueLines(studies: Study[]): LineItem[] {
-  const now = new Date();
+  const now = Date.now();
   const items: LineItem[] = [];
   for (const s of studies) {
     for (const line of s.lines) {
-      if (isDue(line.fsrs, now)) items.push({ studyId: s.id, line });
+      if (isDue(line.sched, now)) items.push({ studyId: s.id, line });
     }
   }
-  items.sort(
-    (a, b) =>
-      new Date(a.line.fsrs.due).getTime() - new Date(b.line.fsrs.due).getTime(),
-  );
+  items.sort((a, b) => a.line.sched.due - b.line.sched.due);
   return items;
 }
 

@@ -1,5 +1,6 @@
 import { get, set } from "idb-keyval";
 import { buildLines } from "./pgn";
+import { newSchedule } from "./srs";
 import type { Chapter, Line, Study } from "./types";
 
 const STUDIES_KEY = "chessmemo.studies";
@@ -24,6 +25,14 @@ function normalize(studies: Study[]): Study[] {
           // skip unparseable chapter
         }
       });
+    } else {
+      // Migrate to the custom level scheduler / response-time fields.
+      lines = lines.map((l) => ({
+        ...l,
+        sched: l.sched ?? newSchedule(),
+        lineTimes: l.lineTimes ?? [],
+        moveTimes: l.moveTimes ?? {},
+      }));
     }
 
     return { ...s, chapters, lines };

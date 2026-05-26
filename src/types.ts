@@ -1,4 +1,4 @@
-import type { Card as FsrsCard } from "ts-fsrs";
+import type { Schedule } from "./srs";
 
 export type Orientation = "white" | "black";
 
@@ -21,7 +21,9 @@ export interface Line {
   moves: LineMove[];
   attempts: number;
   misses: number;
-  fsrs: FsrsCard;
+  sched: Schedule;
+  lineTimes: number[]; // response times (ms) to complete the line
+  moveTimes: Record<number, number[]>; // move index -> response times (ms)
 }
 
 // A single PGN added to an opening. An opening can hold several.

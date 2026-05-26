@@ -1,4 +1,4 @@
-import { newCard } from "./srs";
+import { newSchedule } from "./srs";
 import { enumerateLines, parsePgn } from "./pgnTree";
 import type { Line, LineMove, Orientation } from "./types";
 
@@ -44,7 +44,9 @@ export function buildLines(
       moves,
       attempts: 0,
       misses: 0,
-      fsrs: newCard(),
+      sched: newSchedule(),
+      lineTimes: [],
+      moveTimes: {},
     });
   }
 
