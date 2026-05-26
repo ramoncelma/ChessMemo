@@ -179,11 +179,8 @@ button.link.danger {
 
 /* Home */
 .brand {
-  font-size: 2.4rem;
-  background: linear-gradient(135deg, var(--accent), var(--accent-2));
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
+  font-size: 2.2rem;
+  color: var(--text);
 }
 
 .select,
@@ -676,7 +673,7 @@ button.link.danger {
 }
 
 .logo {
-  width: 56px;
+  width: 88px;
   height: auto;
 }
 
@@ -757,6 +754,60 @@ button.link.danger {
 
 .subline .move.current {
   color: #fff;
+}
+
+/* Review forecast */
+.forecast {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.fc-cell {
+  flex: 0 0 auto;
+  width: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 9px 6px;
+}
+
+.fc-cell.today {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.fc-day {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  color: var(--muted);
+}
+
+.fc-date {
+  font-weight: 700;
+  font-size: 1.05rem;
+}
+
+.fc-count {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--accent);
+  color: #fff;
+  border-radius: 99px;
+  padding: 1px 8px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.fc-cell.empty .fc-count {
+  background: var(--surface-2);
+  color: var(--muted);
 }
 
 /* Dashboard boxes */

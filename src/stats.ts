@@ -105,3 +105,41 @@ export function activity(log: ReviewEntry[], days = 7, now = new Date()): DayAct
 export function totalReviews(log: ReviewEntry[]): number {
   return log.length;
 }
+
+export interface ForecastDay {
+  label: string;
+  date: number;
+  count: number;
+  today: boolean;
+}
+
+// How many positions come due on each of the next `days` days (overdue and
+// due-today both fall on day 0). Gives a schematic "when to come back" view.
+export function forecast(studies: Study[], days = 14, now = new Date()): ForecastDay[] {
+  const dayMs = 86400000;
+  const todayMid = new Date(now);
+  todayMid.setHours(0, 0, 0, 0);
+  const base = todayMid.getTime();
+  const buckets = new Array(days).fill(0);
+
+  for (const s of studies) {
+    for (const c of s.cards) {
+      const dm = new Date(c.fsrs.due);
+      dm.setHours(0, 0, 0, 0);
+      let idx = Math.round((dm.getTime() - base) / dayMs);
+      if (idx < 0) idx = 0;
+      if (idx < days) buckets[idx]++;
+    }
+  }
+
+  const labels = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  return buckets.map((count, i) => {
+    const d = new Date(base + i * dayMs);
+    return {
+      label: i === 0 ? "Today" : labels[d.getDay()],
+      date: d.getDate(),
+      count,
+      today: i === 0,
+    };
+  });
+}

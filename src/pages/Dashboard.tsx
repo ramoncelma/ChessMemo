@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { loadReviewLog, type ReviewEntry } from "../storage";
-import { accuracy, currentStreak, dueCount } from "../stats";
+import { accuracy, currentStreak, dueCount, forecast } from "../stats";
 import type { Study } from "../types";
 
 interface Props {
@@ -32,9 +32,9 @@ const ImportIcon = (
   </svg>
 );
 const SettingsIcon = (
-  <svg className="box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg className="box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="12" cy="12" r="3" />
-    <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1A1.6 1.6 0 0 0 7 2.6h.1A1.6 1.6 0 0 0 8 1.1V1a2 2 0 1 1 4 0v.1A1.6 1.6 0 0 0 17 2.6a1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V7a1.6 1.6 0 0 0 1.5 1H23a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z" />
+    <path d="M12 1.5l1.6 2.7 3.1-.5.6 3.1 2.7 1.6-1.4 2.8 1.4 2.8-2.7 1.6-.6 3.1-3.1-.5L12 22.5l-1.6-2.7-3.1.5-.6-3.1L4 15.6l1.4-2.8L4 10l2.7-1.6.6-3.1 3.1.5z" />
   </svg>
 );
 
@@ -54,6 +54,8 @@ export function Dashboard({
   const due = dueCount(studies);
   const acc = accuracy(studies.flatMap((s) => s.cards));
   const streak = log ? currentStreak(log) : 0;
+  const hasCards = studies.some((s) => s.cards.length > 0);
+  const days = forecast(studies);
 
   const base = import.meta.env.BASE_URL;
   const hideOnError = (e: React.SyntheticEvent<HTMLImageElement>) =>
@@ -94,6 +96,26 @@ export function Dashboard({
           <span className="muted small">day streak</span>
         </div>
       </div>
+
+      {hasCards && (
+        <section>
+          <h3 className="section-label">Review forecast</h3>
+          <div className="forecast">
+            {days.map((d, i) => (
+              <div
+                key={i}
+                className={`fc-cell ${d.today ? "today" : ""} ${
+                  d.count === 0 ? "empty" : ""
+                }`}
+              >
+                <span className="fc-day">{d.label}</span>
+                <span className="fc-date">{d.date}</span>
+                <span className="fc-count">{d.count}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="box-grid">
         <button className="box-card primary" onClick={onPractice}>
