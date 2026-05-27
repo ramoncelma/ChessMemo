@@ -32,12 +32,30 @@ export type PieceSet = (typeof PIECE_SETS)[number];
 
 export type Theme = "light" | "dark";
 
+export type Speed =
+  | "bullet"
+  | "blitz"
+  | "rapid"
+  | "classical"
+  | "correspondence";
+
+export const SPEEDS: Speed[] = [
+  "bullet",
+  "blitz",
+  "rapid",
+  "classical",
+  "correspondence",
+];
+
 export interface Settings {
   boardThemeId: string;
   pieceSet: PieceSet;
   theme: Theme;
   positionMissResetsLine: boolean;
   lang: Lang;
+  lichessUser: string;
+  importSince: string; // YYYY-MM-DD
+  speeds: Record<Speed, boolean>;
 }
 
 const DEFAULTS: Settings = {
@@ -46,6 +64,15 @@ const DEFAULTS: Settings = {
   theme: "light",
   positionMissResetsLine: false,
   lang: "en",
+  lichessUser: "",
+  importSince: "",
+  speeds: {
+    bullet: false,
+    blitz: true,
+    rapid: true,
+    classical: true,
+    correspondence: false,
+  },
 };
 const KEY = "chessmemo.settings";
 
@@ -77,6 +104,12 @@ export function useSettings() {
     setPositionMissResetsLine: (positionMissResetsLine: boolean) =>
       setSettings((s) => ({ ...s, positionMissResetsLine })),
     setLang: (lang: Lang) => setSettings((s) => ({ ...s, lang })),
+    setLichessUser: (lichessUser: string) =>
+      setSettings((s) => ({ ...s, lichessUser })),
+    setImportSince: (importSince: string) =>
+      setSettings((s) => ({ ...s, importSince })),
+    setSpeed: (speed: Speed, on: boolean) =>
+      setSettings((s) => ({ ...s, speeds: { ...s.speeds, [speed]: on } })),
   };
 }
 

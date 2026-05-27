@@ -900,6 +900,27 @@ button.link.danger {
   white-space: nowrap;
 }
 
+.speed-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.speed-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+}
+
+.speed-row input {
+  width: 20px;
+  height: 20px;
+}
+
 .day-lines {
   display: flex;
   flex-direction: column;

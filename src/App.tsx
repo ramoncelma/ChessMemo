@@ -6,12 +6,20 @@ import { ReadView } from "./pages/ReadView";
 import { Import } from "./pages/Import";
 import { LineDrill } from "./pages/LineDrill";
 import { PositionDrill } from "./pages/PositionDrill";
+import { RealGames } from "./pages/RealGames";
 import { Settings } from "./pages/Settings";
 import { useStudies, type LineItem, type PositionItem } from "./useStudies";
 import { useSettings } from "./settings";
 import { I18nContext, makeT } from "./i18n";
 
-type Tab = "dashboard" | "practice" | "read" | "import" | "settings" | "drill";
+type Tab =
+  | "dashboard"
+  | "practice"
+  | "read"
+  | "realgames"
+  | "import"
+  | "settings"
+  | "drill";
 
 type DrillState =
   | { kind: "line"; items: LineItem[]; freeze: boolean }
@@ -36,6 +44,9 @@ export default function App() {
     setTheme,
     setPositionMissResetsLine,
     setLang,
+    setLichessUser,
+    setImportSince,
+    setSpeed,
   } = useSettings();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [readingId, setReadingId] = useState<string | null>(null);
@@ -121,6 +132,13 @@ export default function App() {
                 onImport={() => setTab("import")}
               />
             ))}
+          {tab === "realgames" && (
+            <RealGames
+              studies={studies}
+              settings={settings}
+              onSettings={() => setTab("settings")}
+            />
+          )}
           {tab === "import" && (
             <Import
               studies={studies}
@@ -140,6 +158,9 @@ export default function App() {
               setTheme={setTheme}
               setPositionMissResetsLine={setPositionMissResetsLine}
               setLang={setLang}
+              setLichessUser={setLichessUser}
+              setImportSince={setImportSince}
+              setSpeed={setSpeed}
             />
           )}
           {tab === "drill" && drill?.kind === "line" && (
@@ -190,6 +211,13 @@ export default function App() {
             >
               <span className="tab-ico">≣</span>
               {t("nav.read")}
+            </button>
+            <button
+              className={tab === "realgames" ? "active" : ""}
+              onClick={() => setTab("realgames")}
+            >
+              <span className="tab-ico">♞</span>
+              {t("nav.realGames")}
             </button>
             <button
               className={tab === "import" ? "active" : ""}

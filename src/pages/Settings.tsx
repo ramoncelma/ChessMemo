@@ -3,8 +3,10 @@ import { Board } from "../components/Board";
 import {
   BOARD_THEMES,
   PIECE_SETS,
+  SPEEDS,
   type PieceSet,
   type Settings as SettingsType,
+  type Speed,
   type Theme,
 } from "../settings";
 import { LANGS, type Lang, useT, levelName, levelInterval } from "../i18n";
@@ -18,6 +20,9 @@ interface Props {
   setTheme: (theme: Theme) => void;
   setPositionMissResetsLine: (v: boolean) => void;
   setLang: (lang: Lang) => void;
+  setLichessUser: (v: string) => void;
+  setImportSince: (v: string) => void;
+  setSpeed: (speed: Speed, on: boolean) => void;
 }
 
 type Section = "appearance" | "practice" | "about";
@@ -33,6 +38,9 @@ export function Settings({
   setTheme,
   setPositionMissResetsLine,
   setLang,
+  setLichessUser,
+  setImportSince,
+  setSpeed,
 }: Props) {
   const t = useT();
   const [section, setSection] = useState<Section>("appearance");
@@ -148,20 +156,58 @@ export function Settings({
       )}
 
       {section === "practice" && (
-        <section>
-          <h3 className="section-label">{t("settings.behaviour")}</h3>
-          <label className="toggle-row">
-            <span>
-              <span className="toggle-title">{t("settings.posReset")}</span>
-              <span className="muted small">{t("settings.posResetDesc")}</span>
-            </span>
+        <>
+          <section>
+            <h3 className="section-label">{t("settings.behaviour")}</h3>
+            <label className="toggle-row">
+              <span>
+                <span className="toggle-title">{t("settings.posReset")}</span>
+                <span className="muted small">{t("settings.posResetDesc")}</span>
+              </span>
+              <input
+                type="checkbox"
+                checked={settings.positionMissResetsLine}
+                onChange={(e) => setPositionMissResetsLine(e.target.checked)}
+              />
+            </label>
+          </section>
+
+          <section>
+            <h3 className="section-label">{t("settings.lichessUser")}</h3>
             <input
-              type="checkbox"
-              checked={settings.positionMissResetsLine}
-              onChange={(e) => setPositionMissResetsLine(e.target.checked)}
+              className="text-input"
+              placeholder="magnuscarlsen"
+              value={settings.lichessUser}
+              onChange={(e) => setLichessUser(e.target.value)}
             />
-          </label>
-        </section>
+          </section>
+
+          <section>
+            <h3 className="section-label">{t("settings.importSince")}</h3>
+            <input
+              className="text-input"
+              type="date"
+              value={settings.importSince}
+              onChange={(e) => setImportSince(e.target.value)}
+            />
+          </section>
+
+          <section>
+            <h3 className="section-label">{t("settings.gameTypes")}</h3>
+            <div className="speed-list">
+              {SPEEDS.map((sp) => (
+                <label key={sp} className="speed-row">
+                  <input
+                    type="checkbox"
+                    checked={settings.speeds[sp]}
+                    onChange={(e) => setSpeed(sp, e.target.checked)}
+                  />
+                  {t(`speed.${sp}`)}
+                </label>
+              ))}
+            </div>
+          </section>
+        </>
       )}
 
       {section === "about" && (
