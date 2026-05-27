@@ -91,6 +91,7 @@ export default function App() {
               }}
               onImport={() => setTab("import")}
               onSettings={() => setTab("settings")}
+              onStartLine={startLine}
             />
           )}
           {tab === "practice" && (

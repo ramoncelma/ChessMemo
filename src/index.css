@@ -890,6 +890,32 @@ button.link.danger {
   font-variant-numeric: tabular-nums;
 }
 
+.lvl-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.day-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.fc-cell {
+  cursor: pointer;
+}
+
+.fc-cell.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
 /* Read: line rows */
 .line-row {
   display: flex;

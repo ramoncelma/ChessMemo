@@ -113,6 +113,35 @@ export interface ForecastDay {
   today: boolean;
 }
 
+export interface DueLineRef {
+  studyId: string;
+  studyName: string;
+  line: Line;
+}
+
+// The lines that fall on a given forecast day (overdue counts as day 0).
+export function linesDueOnDay(
+  studies: Study[],
+  dayIndex: number,
+  now = Date.now(),
+): DueLineRef[] {
+  const dayMs = 86400000;
+  const todayMid = new Date(now);
+  todayMid.setHours(0, 0, 0, 0);
+  const base = todayMid.getTime();
+  const out: DueLineRef[] = [];
+  for (const s of studies) {
+    for (const l of s.lines) {
+      const dm = new Date(l.sched.due);
+      dm.setHours(0, 0, 0, 0);
+      let idx = Math.round((dm.getTime() - base) / dayMs);
+      if (idx < 0) idx = 0;
+      if (idx === dayIndex) out.push({ studyId: s.id, studyName: s.name, line: l });
+    }
+  }
+  return out;
+}
+
 // How many lines come due on each of the next `days` days.
 export function forecast(studies: Study[], days = 14, now = new Date()): ForecastDay[] {
   const dayMs = 86400000;

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { dueCount, retention } from "../stats";
 import { isDue } from "../srs";
 import { useT, levelName } from "../i18n";
+import { LevelBadge } from "../components/LevelBadge";
 import {
   buildPositions,
   chapterLineItems,
@@ -134,12 +135,15 @@ export function Practice({
                 <span className="line-open" title={sans}>
                   {sans}
                 </span>
-                <button
-                  className={due ? "primary small" : "again small"}
-                  onClick={() => onStartLine([{ studyId: selStudy.id, line: l }], !due)}
-                >
-                  {due ? t("read.practice") : t("read.practiceAgain")}
-                </button>
+                <div className="line-status">
+                  <LevelBadge level={l.sched.level} />
+                  <button
+                    className={due ? "primary small" : "again small"}
+                    onClick={() => onStartLine([{ studyId: selStudy.id, line: l }], !due)}
+                  >
+                    {due ? t("read.practice") : t("read.practiceAgain")}
+                  </button>
+                </div>
               </li>
             );
           })}

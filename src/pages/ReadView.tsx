@@ -4,6 +4,7 @@ import { lichessAnalysisUrl } from "../lichess";
 import { isDue } from "../srs";
 import { formatCountdown, summarizeTimes } from "../stats";
 import { useT } from "../i18n";
+import { LevelBadge } from "../components/LevelBadge";
 import { type LineItem } from "../useStudies";
 import type { Line, Study } from "../types";
 import type { Settings } from "../settings";
@@ -84,6 +85,7 @@ export function ReadView({
                 {sans}
               </button>
               <div className="line-status">
+                <LevelBadge level={l.sched.level} />
                 {!due && (
                   <span className="muted small">
                     {t("read.next", {

@@ -1,8 +1,17 @@
 import { useEffect, useState } from "react";
 import { loadReviewLog, type ReviewEntry } from "../storage";
-import { accuracy, currentStreak, dueCount, forecast, retention } from "../stats";
-import { useT, levelName } from "../i18n";
+import {
+  accuracy,
+  currentStreak,
+  dueCount,
+  forecast,
+  linesDueOnDay,
+  retention,
+} from "../stats";
+import { useT, levelName, levelInterval } from "../i18n";
 import { LEVEL_NAMES } from "../srs";
+import { LevelBadge } from "../components/LevelBadge";
+import type { LineItem } from "../useStudies";
 import type { Study } from "../types";
 
 interface Props {
@@ -11,6 +20,7 @@ interface Props {
   onRead: () => void;
   onImport: () => void;
   onSettings: () => void;
+  onStartLine: (items: LineItem[]) => void;
 }
 
 const PracticeIcon = (
@@ -45,10 +55,12 @@ export function Dashboard({
   onRead,
   onImport,
   onSettings,
+  onStartLine,
 }: Props) {
   const t = useT();
   const [log, setLog] = useState<ReviewEntry[] | null>(null);
   const [scope, setScope] = useState<string>("all");
+  const [selDay, setSelDay] = useState<number | null>(null);
 
   useEffect(() => {
     loadReviewLog().then(setLog);
@@ -116,7 +128,12 @@ export function Dashboard({
             {LEVEL_NAMES.map((_, i) => (
               <div key={i} className="level-item">
                 <span className={`level-dot lvl-${i}`} />
-                <span className="level-name">{levelName(t, i)}</span>
+                <span className="level-name">
+                  {levelName(t, i)}
+                  {i > 0 && (
+                    <span className="muted small"> ({levelInterval(t, i)})</span>
+                  )}
+                </span>
                 <span className="level-count">{r.levels[i]}</span>
               </div>
             ))}
@@ -129,16 +146,49 @@ export function Dashboard({
           <h3 className="section-label">{t("dash.calendar")}</h3>
           <div className="forecast">
             {days.map((d, i) => (
-              <div
+              <button
                 key={i}
-                className={`fc-cell ${d.today ? "today" : ""} ${d.count === 0 ? "empty" : ""}`}
+                className={`fc-cell ${d.today ? "today" : ""} ${d.count === 0 ? "empty" : ""} ${selDay === i ? "selected" : ""}`}
+                onClick={() => setSelDay(selDay === i ? null : i)}
               >
                 <span className="fc-day">{d.today ? t("dash.today") : d.label}</span>
                 <span className="fc-date">{d.date}</span>
                 <span className="fc-count">{d.count}</span>
-              </div>
+              </button>
             ))}
           </div>
+
+          {selDay !== null &&
+            (() => {
+              const refs = linesDueOnDay(filtered, selDay);
+              if (refs.length === 0) {
+                return <p className="muted small">{t("box.allCaught")}</p>;
+              }
+              return (
+                <div className="day-lines">
+                  <button
+                    className="primary small"
+                    onClick={() =>
+                      onStartLine(
+                        refs.map((r) => ({ studyId: r.studyId, line: r.line })),
+                      )
+                    }
+                  >
+                    {t("practice.linesDue", { n: refs.length })}
+                  </button>
+                  <ul className="list">
+                    {refs.map((ref) => (
+                      <li key={ref.line.id} className="line-row">
+                        <span className="line-open" title={ref.line.moves.map((m) => m.san).join(" ")}>
+                          {ref.line.moves.map((m) => m.san).join(" ")}
+                        </span>
+                        <LevelBadge level={ref.line.sched.level} />
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })()}
         </section>
       )}
 
