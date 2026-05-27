@@ -927,6 +927,29 @@ button.link.danger {
   font-size: 0.85rem;
 }
 
+.again {
+  background: var(--surface-2);
+  border: 1px solid var(--good);
+  color: var(--good);
+  font-weight: 600;
+}
+
+.again.small {
+  padding: 6px 12px;
+  font-size: 0.85rem;
+}
+
+.wrong-links {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.wrong-links button.analyze-link {
+  cursor: pointer;
+}
+
 /* Drill: hint, retry, levels */
 .awaiting-row {
   display: flex;

@@ -3,6 +3,7 @@ import { Board } from "../components/Board";
 import { lichessAnalysisUrl } from "../lichess";
 import { isDue } from "../srs";
 import { formatCountdown, summarizeTimes } from "../stats";
+import { useT } from "../i18n";
 import { type LineItem } from "../useStudies";
 import type { Line, Study } from "../types";
 import type { Settings } from "../settings";
@@ -10,13 +11,24 @@ import type { Settings } from "../settings";
 interface Props {
   study: Study;
   settings: Settings;
+  initialLineId?: string | null;
   onBack: () => void;
   onPractice: (items: LineItem[], freeze: boolean) => void;
 }
 
-export function ReadView({ study, settings, onBack, onPractice }: Props) {
-  const [chapterIdx, setChapterIdx] = useState(0);
-  const [openLineId, setOpenLineId] = useState<string | null>(null);
+export function ReadView({
+  study,
+  settings,
+  initialLineId,
+  onBack,
+  onPractice,
+}: Props) {
+  const t = useT();
+  const initialChapter = initialLineId
+    ? (study.lines.find((l) => l.id === initialLineId)?.chapterIdx ?? 0)
+    : 0;
+  const [chapterIdx, setChapterIdx] = useState(initialChapter);
+  const [openLineId, setOpenLineId] = useState<string | null>(initialLineId ?? null);
 
   const chapterLines = study.lines.filter((l) => l.chapterIdx === chapterIdx);
   const openLine = study.lines.find((l) => l.id === openLineId) ?? null;
@@ -33,13 +45,13 @@ export function ReadView({ study, settings, onBack, onPractice }: Props) {
     );
   }
 
-  const now = new Date();
+  const now = Date.now();
 
   return (
     <div className="page">
       <div className="row">
         <button className="link" onClick={onBack}>
-          ← Back
+          {t("common.back")}
         </button>
         <span className="muted small">{study.name}</span>
       </div>
@@ -60,7 +72,7 @@ export function ReadView({ study, settings, onBack, onPractice }: Props) {
 
       <ul className="list">
         {chapterLines.map((l) => {
-          const due = isDue(l.sched, now.getTime());
+          const due = isDue(l.sched, now);
           const sans = l.moves.map((m) => m.san).join(" ");
           return (
             <li key={l.id} className="line-row">
@@ -72,28 +84,19 @@ export function ReadView({ study, settings, onBack, onPractice }: Props) {
                 {sans}
               </button>
               <div className="line-status">
-                {due ? (
-                  <button
-                    className="primary small"
-                    onClick={() => onPractice([{ studyId: study.id, line: l }], false)}
-                  >
-                    Practice
-                  </button>
-                ) : (
-                  <>
-                    <span className="muted small">
-                      next {formatCountdown(new Date(l.sched.due), now)}
-                    </span>
-                    <button
-                      className="link small"
-                      onClick={() =>
-                        onPractice([{ studyId: study.id, line: l }], true)
-                      }
-                    >
-                      Practice again
-                    </button>
-                  </>
+                {!due && (
+                  <span className="muted small">
+                    {t("read.next", {
+                      x: formatCountdown(new Date(l.sched.due)),
+                    })}
+                  </span>
                 )}
+                <button
+                  className={due ? "primary small" : "again small"}
+                  onClick={() => onPractice([{ studyId: study.id, line: l }], !due)}
+                >
+                  {due ? t("read.practice") : t("read.practiceAgain")}
+                </button>
               </div>
             </li>
           );
@@ -116,32 +119,34 @@ function LineBrowser({
   onBack: () => void;
   onPractice: (items: LineItem[], freeze: boolean) => void;
 }) {
-  const [ply, setPly] = useState(0); // 0 = start, n = after n moves
+  const t = useT();
+  const [ply, setPly] = useState(0);
   const fen = ply === 0 ? line.moves[0].fenBefore : line.moves[ply - 1].fenAfter;
   const playedSans = line.moves.slice(0, ply).map((m) => m.san).join(" ");
   const comment = ply > 0 ? line.moves[ply - 1].comment : undefined;
   const due = isDue(line.sched);
 
   const lineStats = summarizeTimes(line.lineTimes);
-  const moveStats =
-    ply > 0 ? summarizeTimes(line.moveTimes[ply - 1] ?? []) : null;
+  const moveStats = ply > 0 ? summarizeTimes(line.moveTimes[ply - 1] ?? []) : null;
   const fmt = (ms: number) => `${(ms / 1000).toFixed(1)}s`;
 
   return (
     <div className="page drill">
       <div className="row">
         <button className="link" onClick={onBack}>
-          ← Lines
+          {t("read.lines")}
         </button>
         <button
           className="link"
           onClick={() => onPractice([{ studyId: study.id, line }], !due)}
         >
-          {due ? "Practice ▶" : "Practice again ▶"}
+          {due ? t("read.practiceArrow") : t("read.practiceAgainArrow")}
         </button>
       </div>
 
-      <div className="line-context">{playedSans || "Starting position"}</div>
+      <div className="line-context">
+        {playedSans || t("common.startingPosition")}
+      </div>
 
       <Board
         fen={fen}
@@ -158,21 +163,27 @@ function LineBrowser({
         <div className="time-stats">
           {lineStats && (
             <div className="time-row">
-              <span className="muted small">Line ({lineStats.n})</span>
+              <span className="muted small">{t("read.lineStats", { n: lineStats.n })}</span>
               <span className="small">
-                avg {fmt(lineStats.avg)} · min {fmt(lineStats.min)} · max{" "}
-                {fmt(lineStats.max)}
+                {t("read.statsAvg", {
+                  avg: fmt(lineStats.avg),
+                  min: fmt(lineStats.min),
+                  max: fmt(lineStats.max),
+                })}
               </span>
             </div>
           )}
           {moveStats && (
             <div className="time-row">
               <span className="muted small">
-                Move {line.moves[ply - 1].san} ({moveStats.n})
+                {t("read.moveStats", { san: line.moves[ply - 1].san, n: moveStats.n })}
               </span>
               <span className="small">
-                avg {fmt(moveStats.avg)} · min {fmt(moveStats.min)} · max{" "}
-                {fmt(moveStats.max)}
+                {t("read.statsAvg", {
+                  avg: fmt(moveStats.avg),
+                  min: fmt(moveStats.min),
+                  max: fmt(moveStats.max),
+                })}
               </span>
             </div>
           )}
@@ -181,21 +192,21 @@ function LineBrowser({
 
       <div className="read-controls">
         <button className="nav-btn" disabled={ply === 0} onClick={() => setPly(0)}>
-          ⏮ Start
+          {t("read.start")}
         </button>
         <button
           className="nav-btn"
           disabled={ply === 0}
           onClick={() => setPly((p) => p - 1)}
         >
-          ← Prev
+          {t("read.prev")}
         </button>
         <button
           className="nav-btn"
           disabled={ply >= line.moves.length}
           onClick={() => setPly((p) => Math.min(line.moves.length, p + 1))}
         >
-          Next →
+          {t("read.nextBtn")}
         </button>
         <a
           className="analyze-link"
@@ -203,7 +214,7 @@ function LineBrowser({
           target="_blank"
           rel="noopener noreferrer"
         >
-          Lichess ↗
+          {t("read.lichess")}
         </a>
       </div>
     </div>

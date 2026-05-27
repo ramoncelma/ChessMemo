@@ -1,3 +1,4 @@
+import { useT } from "../i18n";
 import type { Study } from "../types";
 
 interface Props {
@@ -7,13 +8,15 @@ interface Props {
 }
 
 export function ReadList({ studies, onRead, onImport }: Props) {
+  const t = useT();
+
   if (studies.length === 0) {
     return (
       <div className="page center">
-        <h2>Nothing to read</h2>
-        <p className="muted">Import a PGN to browse its lines.</p>
+        <h2>{t("read.nothing")}</h2>
+        <p className="muted">{t("read.nothingSub")}</p>
         <button className="primary big" onClick={onImport}>
-          Import PGN
+          {t("box.import")}
         </button>
       </div>
     );
@@ -21,19 +24,21 @@ export function ReadList({ studies, onRead, onImport }: Props) {
 
   return (
     <div className="page">
-      <h2>Read</h2>
-      <p className="muted">Step through every line, with notes and analysis.</p>
+      <h2>{t("read.title")}</h2>
+      <p className="muted">{t("read.subtitle")}</p>
       <ul className="list">
         {studies.map((s) => (
           <li key={s.id} className="list-item">
             <div>
               <div className="list-title">{s.name}</div>
               <div className="muted small">
-                {s.chapters.length} chapter{s.chapters.length === 1 ? "" : "s"} ·
-                plays {s.orientation}
+                {t("practice.linesCount", {
+                  n: s.lines.length,
+                  side: s.orientation === "white" ? t("common.white") : t("common.black"),
+                })}
               </div>
             </div>
-            <button onClick={() => onRead(s.id)}>Read</button>
+            <button onClick={() => onRead(s.id)}>{t("read.title")}</button>
           </li>
         ))}
       </ul>

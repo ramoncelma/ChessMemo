@@ -7,7 +7,7 @@ import {
   type Settings as SettingsType,
   type Theme,
 } from "../settings";
-import { LEVEL_NAMES } from "../srs";
+import { LANGS, type Lang, useT, levelName, levelInterval } from "../i18n";
 
 const PREVIEW_FEN = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1";
 
@@ -17,6 +17,7 @@ interface Props {
   setPieceSet: (set: PieceSet) => void;
   setTheme: (theme: Theme) => void;
   setPositionMissResetsLine: (v: boolean) => void;
+  setLang: (lang: Lang) => void;
 }
 
 type Section = "appearance" | "practice" | "about";
@@ -31,50 +32,67 @@ export function Settings({
   setPieceSet,
   setTheme,
   setPositionMissResetsLine,
+  setLang,
 }: Props) {
+  const t = useT();
   const [section, setSection] = useState<Section>("appearance");
 
   return (
     <div className="page">
-      <h2>Settings</h2>
+      <h2>{t("settings.title")}</h2>
 
       <div className="seg">
         <button
           className={section === "appearance" ? "active" : ""}
           onClick={() => setSection("appearance")}
         >
-          Appearance
+          {t("settings.appearance")}
         </button>
         <button
           className={section === "practice" ? "active" : ""}
           onClick={() => setSection("practice")}
         >
-          Practice
+          {t("settings.practiceTab")}
         </button>
         <button
           className={section === "about" ? "active" : ""}
           onClick={() => setSection("about")}
         >
-          About
+          {t("settings.about")}
         </button>
       </div>
 
       {section === "appearance" && (
         <>
           <section>
-            <h3 className="section-label">Theme</h3>
+            <h3 className="section-label">{t("settings.language")}</h3>
+            <select
+              className="select"
+              value={settings.lang}
+              onChange={(e) => setLang(e.target.value as Lang)}
+            >
+              {LANGS.map((l) => (
+                <option key={l.id} value={l.id}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+          </section>
+
+          <section>
+            <h3 className="section-label">{t("settings.theme")}</h3>
             <div className="seg">
               <button
                 className={settings.theme === "light" ? "active" : ""}
                 onClick={() => setTheme("light")}
               >
-                Light
+                {t("settings.light")}
               </button>
               <button
                 className={settings.theme === "dark" ? "active" : ""}
                 onClick={() => setTheme("dark")}
               >
-                Dark
+                {t("settings.dark")}
               </button>
             </div>
           </section>
@@ -91,28 +109,28 @@ export function Settings({
           </div>
 
           <section>
-            <h3 className="section-label">Board</h3>
+            <h3 className="section-label">{t("settings.board")}</h3>
             <div className="swatch-grid">
-              {BOARD_THEMES.map((t) => (
+              {BOARD_THEMES.map((tm) => (
                 <button
-                  key={t.id}
-                  className={`swatch ${settings.boardThemeId === t.id ? "active" : ""}`}
-                  onClick={() => setBoardTheme(t.id)}
+                  key={tm.id}
+                  className={`swatch ${settings.boardThemeId === tm.id ? "active" : ""}`}
+                  onClick={() => setBoardTheme(tm.id)}
                 >
                   <span className="swatch-tiles">
-                    <span style={{ background: t.light }} />
-                    <span style={{ background: t.dark }} />
-                    <span style={{ background: t.dark }} />
-                    <span style={{ background: t.light }} />
+                    <span style={{ background: tm.light }} />
+                    <span style={{ background: tm.dark }} />
+                    <span style={{ background: tm.dark }} />
+                    <span style={{ background: tm.light }} />
                   </span>
-                  {t.name}
+                  {tm.name}
                 </button>
               ))}
             </div>
           </section>
 
           <section>
-            <h3 className="section-label">Pieces</h3>
+            <h3 className="section-label">{t("settings.pieces")}</h3>
             <div className="piece-grid">
               {PIECE_SETS.map((set) => (
                 <button
@@ -131,14 +149,11 @@ export function Settings({
 
       {section === "practice" && (
         <section>
-          <h3 className="section-label">Behaviour</h3>
+          <h3 className="section-label">{t("settings.behaviour")}</h3>
           <label className="toggle-row">
             <span>
-              <span className="toggle-title">Position misses reset the line</span>
-              <span className="muted small">
-                A wrong move in "Practice position" sends that line back to the
-                start of the spaced-repetition cycle.
-              </span>
+              <span className="toggle-title">{t("settings.posReset")}</span>
+              <span className="muted small">{t("settings.posResetDesc")}</span>
             </span>
             <input
               type="checkbox"
@@ -151,41 +166,23 @@ export function Settings({
 
       {section === "about" && (
         <section className="about">
-          <h3 className="section-label">How spaced repetition works</h3>
-          <p>
-            ChessMemo trains whole <b>lines</b> — a complete sequence from the
-            start of a chapter to the end of a variation. Each line is one item
-            you review on a schedule.
-          </p>
-          <p>
-            When a line is due, you play through it move by move. If you play the
-            entire line correctly — no wrong moves, no hints, and each move
-            within the time limit — the line is <b>promoted</b> to the next level
-            and won't be shown again until later. Any slip sends it back to the
-            first level so you see it again soon.
-          </p>
-          <h3 className="section-label">The levels</h3>
+          <h3 className="section-label">{t("about.h1")}</h3>
+          <p>{t("about.p1")}</p>
+          <p>{t("about.p2")}</p>
+          <h3 className="section-label">{t("about.levelsH")}</h3>
           <ol className="level-legend">
-            {LEVEL_NAMES.slice(1).map((name, i) => (
+            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
               <li key={i}>
-                <b>Level {i + 1}</b> — review again in {name}
+                {t("about.levelLine", {
+                  n: i,
+                  name: levelName(t, i),
+                  int: levelInterval(t, i),
+                })}
               </li>
             ))}
           </ol>
-          <p className="muted small">
-            New lines start unscheduled and are due immediately. A line at the
-            top level recurs every 6 months.
-          </p>
-          <h3 className="section-label">Hints &amp; timing</h3>
-          <p>
-            Asking for a <b>hint</b> shows the piece to move but counts the line
-            as missed. A move that takes longer than <b>30 seconds</b> also
-            counts as missed (you can still finish — the timer just turns red).
-          </p>
-          <p>
-            <b>Practice again</b> on a line that isn't due lets you rehearse
-            without changing its next date — unless you miss, which resets it.
-          </p>
+          <h3 className="section-label">{t("about.timingH")}</h3>
+          <p>{t("about.timing")}</p>
         </section>
       )}
     </div>

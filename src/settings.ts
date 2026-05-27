@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type { Lang } from "./i18n";
 
 export interface BoardTheme {
   id: string;
@@ -36,6 +37,7 @@ export interface Settings {
   pieceSet: PieceSet;
   theme: Theme;
   positionMissResetsLine: boolean;
+  lang: Lang;
 }
 
 const DEFAULTS: Settings = {
@@ -43,6 +45,7 @@ const DEFAULTS: Settings = {
   pieceSet: "cburnett",
   theme: "light",
   positionMissResetsLine: false,
+  lang: "en",
 };
 const KEY = "chessmemo.settings";
 
@@ -73,6 +76,7 @@ export function useSettings() {
     setTheme: (theme: Theme) => setSettings((s) => ({ ...s, theme })),
     setPositionMissResetsLine: (positionMissResetsLine: boolean) =>
       setSettings((s) => ({ ...s, positionMissResetsLine })),
+    setLang: (lang: Lang) => setSettings((s) => ({ ...s, lang })),
   };
 }
 

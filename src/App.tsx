@@ -9,6 +9,7 @@ import { PositionDrill } from "./pages/PositionDrill";
 import { Settings } from "./pages/Settings";
 import { useStudies, type LineItem, type PositionItem } from "./useStudies";
 import { useSettings } from "./settings";
+import { I18nContext, makeT } from "./i18n";
 
 type Tab = "dashboard" | "practice" | "read" | "import" | "settings" | "drill";
 
@@ -34,25 +35,38 @@ export default function App() {
     setPieceSet,
     setTheme,
     setPositionMissResetsLine,
+    setLang,
   } = useSettings();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [readingId, setReadingId] = useState<string | null>(null);
+  const [readingLineId, setReadingLineId] = useState<string | null>(null);
   const [drill, setDrill] = useState<DrillState>(null);
 
+  const t = makeT(settings.lang);
+
   if (!loaded) {
-    return <div className="page center muted">Loading…</div>;
+    return <div className="page center muted">{t("common.loading")}</div>;
   }
 
   const readingStudy = studies.find((s) => s.id === readingId) ?? null;
 
   function startLine(items: LineItem[], freeze = false) {
+    if (items.length === 0) return;
     setDrill({ kind: "line", items, freeze });
     setTab("drill");
   }
 
   function startPosition(positions: PositionItem[]) {
+    if (positions.length === 0) return;
     setDrill({ kind: "position", positions });
     setTab("drill");
+  }
+
+  function openRead(studyId: string, lineId: string | null) {
+    setReadingId(studyId);
+    setReadingLineId(lineId);
+    setDrill(null);
+    setTab("read");
   }
 
   function endDrill() {
@@ -63,129 +77,136 @@ export default function App() {
   const showTabbar = tab !== "drill";
 
   return (
-    <div className="app">
-      <main>
-        {tab === "dashboard" && (
-          <Dashboard
-            studies={studies}
-            onPractice={() => setTab("practice")}
-            onRead={() => {
-              setReadingId(null);
-              setTab("read");
-            }}
-            onImport={() => setTab("import")}
-            onSettings={() => setTab("settings")}
-          />
-        )}
-        {tab === "practice" && (
-          <Practice
-            studies={studies}
-            onStartLine={(items) => startLine(items, false)}
-            onStartPosition={startPosition}
-            onImport={() => setTab("import")}
-          />
-        )}
-        {tab === "read" &&
-          (readingStudy ? (
-            <ReadView
-              study={readingStudy}
-              settings={settings}
-              onBack={() => setReadingId(null)}
-              onPractice={startLine}
-            />
-          ) : (
-            <ReadList
+    <I18nContext.Provider value={t}>
+      <div className="app">
+        <main>
+          {tab === "dashboard" && (
+            <Dashboard
               studies={studies}
-              onRead={(id) => {
-                setReadingId(id);
+              onPractice={() => setTab("practice")}
+              onRead={() => {
+                setReadingId(null);
+                setReadingLineId(null);
                 setTab("read");
               }}
               onImport={() => setTab("import")}
+              onSettings={() => setTab("settings")}
             />
-          ))}
-        {tab === "import" && (
-          <Import
-            studies={studies}
-            addStudy={addStudy}
-            addChapter={addChapter}
-            renameStudy={renameStudy}
-            renameChapter={renameChapter}
-            removeStudy={removeStudy}
-            onDone={() => setTab("dashboard")}
-          />
-        )}
-        {tab === "settings" && (
-          <Settings
-            settings={settings}
-            setBoardTheme={setBoardTheme}
-            setPieceSet={setPieceSet}
-            setTheme={setTheme}
-            setPositionMissResetsLine={setPositionMissResetsLine}
-          />
-        )}
-        {tab === "drill" && drill?.kind === "line" && (
-          <LineDrill
-            items={drill.items}
-            studies={studies}
-            settings={settings}
-            updateLine={updateLine}
-            freezeOnSuccess={drill.freeze}
-            onDone={endDrill}
-          />
-        )}
-        {tab === "drill" && drill?.kind === "position" && (
-          <PositionDrill
-            positions={drill.positions}
-            studies={studies}
-            settings={settings}
-            updateLine={updateLine}
-            onDone={endDrill}
-          />
-        )}
-      </main>
+          )}
+          {tab === "practice" && (
+            <Practice
+              studies={studies}
+              onStartLine={startLine}
+              onStartPosition={startPosition}
+              onImport={() => setTab("import")}
+            />
+          )}
+          {tab === "read" &&
+            (readingStudy ? (
+              <ReadView
+                study={readingStudy}
+                settings={settings}
+                initialLineId={readingLineId}
+                onBack={() => {
+                  setReadingId(null);
+                  setReadingLineId(null);
+                }}
+                onPractice={startLine}
+              />
+            ) : (
+              <ReadList
+                studies={studies}
+                onRead={(id) => openRead(id, null)}
+                onImport={() => setTab("import")}
+              />
+            ))}
+          {tab === "import" && (
+            <Import
+              studies={studies}
+              addStudy={addStudy}
+              addChapter={addChapter}
+              renameStudy={renameStudy}
+              renameChapter={renameChapter}
+              removeStudy={removeStudy}
+              onDone={() => setTab("dashboard")}
+            />
+          )}
+          {tab === "settings" && (
+            <Settings
+              settings={settings}
+              setBoardTheme={setBoardTheme}
+              setPieceSet={setPieceSet}
+              setTheme={setTheme}
+              setPositionMissResetsLine={setPositionMissResetsLine}
+              setLang={setLang}
+            />
+          )}
+          {tab === "drill" && drill?.kind === "line" && (
+            <LineDrill
+              items={drill.items}
+              studies={studies}
+              settings={settings}
+              updateLine={updateLine}
+              freezeOnSuccess={drill.freeze}
+              onOpenRead={openRead}
+              onDone={endDrill}
+            />
+          )}
+          {tab === "drill" && drill?.kind === "position" && (
+            <PositionDrill
+              positions={drill.positions}
+              studies={studies}
+              settings={settings}
+              updateLine={updateLine}
+              onDone={endDrill}
+            />
+          )}
+        </main>
 
-      {showTabbar && (
-        <nav className="tabbar">
-          <button
-            className={tab === "dashboard" ? "active" : ""}
-            onClick={() => setTab("dashboard")}
-          >
-            <span className="tab-ico">▦</span>
-            Dashboard
-          </button>
-          <button
-            className={tab === "practice" ? "active" : ""}
-            onClick={() => setTab("practice")}
-          >
-            <span className="tab-ico">♟</span>
-            Practice
-          </button>
-          <button
-            className={tab === "read" ? "active" : ""}
-            onClick={() => {
-              setReadingId(null);
-              setTab("read");
-            }}
-          >
-            <span className="tab-ico">≣</span>
-            Read
-          </button>
-          <button
-            className={tab === "import" ? "active" : ""}
-            onClick={() => setTab("import")}
-          >
-            <span className="tab-ico">＋</span>
-            Import
-          </button>
-          <button
-            className={tab === "settings" ? "active" : ""}
-            onClick={() => setTab("settings")}
-          >
-            <span className="tab-ico">⚙</span>
-            Settings
-          </button>
-        </nav>
-      )}
-    </div>
+        {showTabbar && (
+          <nav className="tabbar">
+            <button
+              className={tab === "dashboard" ? "active" : ""}
+              onClick={() => setTab("dashboard")}
+            >
+              <span className="tab-ico">▦</span>
+              {t("nav.dashboard")}
+            </button>
+            <button
+              className={tab === "practice" ? "active" : ""}
+              onClick={() => setTab("practice")}
+            >
+              <span className="tab-ico">♟</span>
+              {t("nav.practice")}
+            </button>
+            <button
+              className={tab === "read" ? "active" : ""}
+              onClick={() => {
+                setReadingId(null);
+                setReadingLineId(null);
+                setTab("read");
+              }}
+            >
+              <span className="tab-ico">≣</span>
+              {t("nav.read")}
+            </button>
+            <button
+              className={tab === "import" ? "active" : ""}
+              onClick={() => setTab("import")}
+            >
+              <span className="tab-ico">＋</span>
+              {t("nav.import")}
+            </button>
+            <button
+              className={tab === "settings" ? "active" : ""}
+              onClick={() => setTab("settings")}
+            >
+              <span className="tab-ico">⚙</span>
+              {t("nav.settings")}
+            </button>
+          </nav>
+        )}
+      </div>
+    </I18nContext.Provider>
   );
 }

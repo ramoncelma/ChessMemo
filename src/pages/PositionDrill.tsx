@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Chess } from "chess.js";
 import { Board } from "../components/Board";
 import { resetLevel } from "../srs";
+import { useT } from "../i18n";
 import { type PositionItem } from "../useStudies";
 import type { Line, Study } from "../types";
 import type { Settings } from "../settings";
@@ -23,6 +24,7 @@ export function PositionDrill({
   updateLine,
   onDone,
 }: Props) {
+  const t = useT();
   const [queue] = useState<PositionItem[]>(() => positions);
   const [index, setIndex] = useState(0);
   const [backlog, setBacklog] = useState<PositionItem[]>([]);
@@ -47,12 +49,14 @@ export function PositionDrill({
       <div className="page center">
         <div className="done-card">
           <div className="done-emoji">🎯</div>
-          <h2>Session complete</h2>
+          <h2>{t("drill.sessionComplete")}</h2>
           <p className="muted">
-            {answered} positions{answered ? ` · ${pct}% first try` : ""}
+            {answered
+              ? t("drill.posSummary", { n: answered, pct })
+              : t("drill.posSummary0", { n: answered })}
           </p>
           <button className="primary big" onClick={onDone}>
-            Back home
+            {t("common.backHome")}
           </button>
         </div>
       </div>
@@ -127,7 +131,7 @@ export function PositionDrill({
         </span>
       </div>
 
-      <div className="line-context">Guess the move for this position</div>
+      <div className="line-context">{t("drill.guessMove")}</div>
 
       <Board
         fen={fen}
@@ -143,29 +147,31 @@ export function PositionDrill({
         {phase === "awaiting" && (
           <div className="awaiting-row">
             <span className="turn-pill">
-              {current.orientation === "white" ? "White" : "Black"} to move
+              {t("drill.toMove", {
+                side: current.orientation === "white" ? t("common.white") : t("common.black"),
+              })}
             </span>
             <button
               className="hint-btn"
               disabled={hinted}
               onClick={() => setHinted(true)}
             >
-              {hinted ? "Hint shown" : "💡 Hint"}
+              {hinted ? t("drill.hintShown") : t("drill.hint")}
             </button>
           </div>
         )}
         {phase === "correct" && (
           <span className={`result ${hinted ? "wrong" : "correct"}`}>
-            {hinted ? "Hinted —" : "✓"} {current.san}
+            {hinted ? "•" : "✓"} {current.san}
           </span>
         )}
         {phase === "wrong" && (
           <div className="wrong-block">
             <span className="result wrong">
-              ✕ Best move was <b>{current.san}</b>
+              ✕ {t("drill.bestMove")} <b>{current.san}</b>
             </span>
             <button className="primary big" onClick={() => resolve(false)}>
-              Next
+              {t("drill.next")}
             </button>
           </div>
         )}

@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { dueCount, retention } from "../stats";
-import { LEVEL_NAMES } from "../srs";
+import { isDue } from "../srs";
+import { useT, levelName } from "../i18n";
 import {
   buildPositions,
   chapterLineItems,
@@ -12,31 +14,14 @@ import type { Line, Study } from "../types";
 
 interface Props {
   studies: Study[];
-  onStartLine: (items: LineItem[]) => void;
+  onStartLine: (items: LineItem[], freeze?: boolean) => void;
   onStartPosition: (positions: PositionItem[]) => void;
   onImport: () => void;
 }
 
-function LevelBar({ lines }: { lines: Line[] }) {
-  const r = retention(lines);
-  if (r.total === 0) return null;
-  return (
-    <div className="levels">
-      <div className="level-bar">
-        {r.levels.map((count, i) =>
-          count > 0 ? (
-            <span
-              key={i}
-              className={`level-seg lvl-${i}`}
-              style={{ width: `${(count / r.total) * 100}%` }}
-              title={`${LEVEL_NAMES[i]}: ${count}`}
-            />
-          ) : null,
-        )}
-      </div>
-      <span className="muted small">{r.retainedPct}% retained</span>
-    </div>
-  );
+function dueItemsOf(items: LineItem[]): LineItem[] {
+  const now = Date.now();
+  return items.filter((it) => isDue(it.line.sched, now));
 }
 
 export function Practice({
@@ -45,80 +30,177 @@ export function Practice({
   onStartPosition,
   onImport,
 }: Props) {
+  const t = useT();
+  const [selId, setSelId] = useState<string | null>(null);
+  const [chapterIdx, setChapterIdx] = useState(0);
+
   if (studies.length === 0) {
     return (
       <div className="page center">
-        <h2>Nothing to practice</h2>
-        <p className="muted">Import a PGN to create your first opening.</p>
+        <h2>{t("practice.nothing")}</h2>
+        <p className="muted">{t("practice.nothingSub")}</p>
         <button className="primary big" onClick={onImport}>
-          Import PGN
+          {t("box.import")}
         </button>
       </div>
     );
   }
 
-  const totalDue = dueCount(studies);
+  const side = (s: Study) =>
+    s.orientation === "white" ? t("common.white") : t("common.black");
 
+  function LevelBar({ lines }: { lines: Line[] }) {
+    const r = retention(lines);
+    if (r.total === 0) return null;
+    return (
+      <div className="levels">
+        <div className="level-bar">
+          {r.levels.map((count, i) =>
+            count > 0 ? (
+              <span
+                key={i}
+                className={`level-seg lvl-${i}`}
+                style={{ width: `${(count / r.total) * 100}%` }}
+                title={`${levelName(t, i)}: ${count}`}
+              />
+            ) : null,
+          )}
+        </div>
+        <span className="muted small">
+          {t("practice.retainedPct", { n: r.retainedPct })}
+        </span>
+      </div>
+    );
+  }
+
+  function lineButtons(items: LineItem[]) {
+    const due = dueItemsOf(items);
+    return (
+      <div className="practice-modes">
+        {due.length > 0 ? (
+          <button className="primary" onClick={() => onStartLine(due, false)}>
+            {t("practice.linesDue", { n: due.length })}
+          </button>
+        ) : (
+          <button className="again" onClick={() => onStartLine(items, true)}>
+            {t("practice.againLines")}
+          </button>
+        )}
+        <button onClick={() => onStartPosition(buildPositions(selStudy ?? studies[0], items))}>
+          {t("practice.positions")}
+        </button>
+      </div>
+    );
+  }
+
+  const selStudy = studies.find((s) => s.id === selId) ?? null;
+
+  // ---- Line-selection view for one opening ----
+  if (selStudy) {
+    const chLines = selStudy.lines.filter((l) => l.chapterIdx === chapterIdx);
+    const chItems = chapterLineItems(selStudy, chapterIdx);
+    const now = Date.now();
+    return (
+      <div className="page">
+        <div className="row">
+          <button className="link" onClick={() => setSelId(null)}>
+            {t("common.back")}
+          </button>
+          <span className="muted small">{selStudy.name}</span>
+        </div>
+
+        {selStudy.chapters.length > 1 && (
+          <select
+            className="select"
+            value={chapterIdx}
+            onChange={(e) => setChapterIdx(Number(e.target.value))}
+          >
+            {selStudy.chapters.map((c, i) => (
+              <option key={i} value={i}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {lineButtons(chItems)}
+
+        <ul className="list">
+          {chLines.map((l) => {
+            const due = isDue(l.sched, now);
+            const sans = l.moves.map((m) => m.san).join(" ");
+            return (
+              <li key={l.id} className="line-row">
+                <span className="line-open" title={sans}>
+                  {sans}
+                </span>
+                <button
+                  className={due ? "primary small" : "again small"}
+                  onClick={() => onStartLine([{ studyId: selStudy.id, line: l }], !due)}
+                >
+                  {due ? t("read.practice") : t("read.practiceAgain")}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    );
+  }
+
+  // ---- Overview ----
+  const totalDue = dueCount(studies);
   return (
     <div className="page">
-      <h2>Practice</h2>
+      <h2>{t("practice.title")}</h2>
 
       <button
         className="primary big"
         disabled={totalDue === 0}
-        onClick={() => onStartLine(dueLines(studies))}
+        onClick={() => onStartLine(dueLines(studies), false)}
       >
-        {totalDue === 0 ? "All caught up" : `Review all due (${totalDue})`}
+        {totalDue === 0
+          ? t("practice.allCaught")
+          : t("practice.reviewAllDue", { n: totalDue })}
       </button>
 
-      {studies.map((s) => (
-        <section key={s.id} className="study-card">
-          <div className="list-title">{s.name}</div>
-          <div className="muted small">
-            {s.lines.length} lines · plays {s.orientation}
-          </div>
-          <LevelBar lines={s.lines} />
+      {studies.map((s) => {
+        const items = lineItemsOf(s);
+        const due = dueItemsOf(items);
+        return (
+          <section key={s.id} className="study-card">
+            <div className="list-title">{s.name}</div>
+            <div className="muted small">
+              {t("practice.linesCount", { n: s.lines.length, side: side(s) })}
+            </div>
+            <LevelBar lines={s.lines} />
 
-          <div className="practice-modes">
-            <button onClick={() => onStartLine(lineItemsOf(s))}>
-              Practice line
-            </button>
+            <div className="practice-modes">
+              {due.length > 0 ? (
+                <button className="primary" onClick={() => onStartLine(due, false)}>
+                  {t("practice.linesDue", { n: due.length })}
+                </button>
+              ) : (
+                <button className="again" onClick={() => onStartLine(items, true)}>
+                  {t("practice.againLines")}
+                </button>
+              )}
+              <button onClick={() => onStartPosition(buildPositions(s, items))}>
+                {t("practice.positions")}
+              </button>
+            </div>
             <button
-              onClick={() => onStartPosition(buildPositions(s, lineItemsOf(s)))}
+              className="link"
+              onClick={() => {
+                setSelId(s.id);
+                setChapterIdx(0);
+              }}
             >
-              Practice position
+              {t("practice.chooseLines")} →
             </button>
-          </div>
-
-          {s.chapters.length > 1 && (
-            <ul className="chapter-list">
-              {s.chapters.map((ch, i) => (
-                <li key={i} className="chapter-row">
-                  <span className="muted small chapter-name">{ch.name}</span>
-                  <div className="chapter-actions">
-                    <button
-                      className="link small"
-                      onClick={() => onStartLine(chapterLineItems(s, i))}
-                    >
-                      Line
-                    </button>
-                    <button
-                      className="link small"
-                      onClick={() =>
-                        onStartPosition(
-                          buildPositions(s, chapterLineItems(s, i)),
-                        )
-                      }
-                    >
-                      Position
-                    </button>
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      ))}
+          </section>
+        );
+      })}
     </div>
   );
 }

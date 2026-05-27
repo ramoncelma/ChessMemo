@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { loadReviewLog, type ReviewEntry } from "../storage";
 import { accuracy, currentStreak, dueCount, forecast, retention } from "../stats";
+import { useT, levelName } from "../i18n";
 import { LEVEL_NAMES } from "../srs";
 import type { Study } from "../types";
 
@@ -45,6 +46,7 @@ export function Dashboard({
   onImport,
   onSettings,
 }: Props) {
+  const t = useT();
   const [log, setLog] = useState<ReviewEntry[] | null>(null);
   const [scope, setScope] = useState<string>("all");
 
@@ -52,8 +54,7 @@ export function Dashboard({
     loadReviewLog().then(setLog);
   }, []);
 
-  const filtered =
-    scope === "all" ? studies : studies.filter((s) => s.id === scope);
+  const filtered = scope === "all" ? studies : studies.filter((s) => s.id === scope);
   const lines = filtered.flatMap((s) => s.lines);
 
   const due = dueCount(filtered);
@@ -74,17 +75,13 @@ export function Dashboard({
         <img className="logo logo-dark" src={`${base}logo-dark.png`} alt="" onError={hideOnError} />
         <div>
           <h1 className="brand">ChessMemo</h1>
-          <p className="muted small">Your opening trainer</p>
+          <p className="muted small">{t("dash.subtitle")}</p>
         </div>
       </div>
 
       {studies.length > 1 && (
-        <select
-          className="select"
-          value={scope}
-          onChange={(e) => setScope(e.target.value)}
-        >
-          <option value="all">All repertoires</option>
+        <select className="select" value={scope} onChange={(e) => setScope(e.target.value)}>
+          <option value="all">{t("common.allRepertoires")}</option>
           {studies.map((s) => (
             <option key={s.id} value={s.id}>
               {s.name}
@@ -96,30 +93,30 @@ export function Dashboard({
       <div className="stat-grid">
         <div className="stat-card">
           <span className="stat-value">{due}</span>
-          <span className="muted small">lines to review</span>
+          <span className="muted small">{t("dash.linesToReview")}</span>
         </div>
         <div className="stat-card">
           <span className="stat-value">{acc === null ? "—" : `${acc}%`}</span>
-          <span className="muted small">accuracy</span>
+          <span className="muted small">{t("dash.accuracy")}</span>
         </div>
         <div className="stat-card">
           <span className="stat-value">{streak}🔥</span>
-          <span className="muted small">day streak</span>
+          <span className="muted small">{t("dash.dayStreak")}</span>
         </div>
         <div className="stat-card">
           <span className="stat-value">{r.retainedPct}%</span>
-          <span className="muted small">retained</span>
+          <span className="muted small">{t("dash.retained")}</span>
         </div>
       </div>
 
       {hasLines && (
         <section>
-          <h3 className="section-label">Memorization levels</h3>
+          <h3 className="section-label">{t("dash.levels")}</h3>
           <div className="level-list">
-            {LEVEL_NAMES.map((name, i) => (
+            {LEVEL_NAMES.map((_, i) => (
               <div key={i} className="level-item">
                 <span className={`level-dot lvl-${i}`} />
-                <span className="level-name">{name}</span>
+                <span className="level-name">{levelName(t, i)}</span>
                 <span className="level-count">{r.levels[i]}</span>
               </div>
             ))}
@@ -129,14 +126,14 @@ export function Dashboard({
 
       {hasLines && (
         <section>
-          <h3 className="section-label">Review calendar</h3>
+          <h3 className="section-label">{t("dash.calendar")}</h3>
           <div className="forecast">
             {days.map((d, i) => (
               <div
                 key={i}
                 className={`fc-cell ${d.today ? "today" : ""} ${d.count === 0 ? "empty" : ""}`}
               >
-                <span className="fc-day">{d.label}</span>
+                <span className="fc-day">{d.today ? t("dash.today") : d.label}</span>
                 <span className="fc-date">{d.date}</span>
                 <span className="fc-count">{d.count}</span>
               </div>
@@ -148,23 +145,25 @@ export function Dashboard({
       <div className="box-grid">
         <button className="box-card primary" onClick={onPractice}>
           {PracticeIcon}
-          <span className="box-title">Practice</span>
-          <span className="box-sub">{due > 0 ? `${due} due now` : "All caught up"}</span>
+          <span className="box-title">{t("box.practice")}</span>
+          <span className="box-sub">
+            {due > 0 ? t("box.practiceDue", { n: due }) : t("box.allCaught")}
+          </span>
         </button>
         <button className="box-card" onClick={onRead}>
           {ReadIcon}
-          <span className="box-title">Read</span>
-          <span className="box-sub">Browse your lines</span>
+          <span className="box-title">{t("box.read")}</span>
+          <span className="box-sub">{t("box.readSub")}</span>
         </button>
         <button className="box-card" onClick={onImport}>
           {ImportIcon}
-          <span className="box-title">Import PGN</span>
-          <span className="box-sub">Add or merge a study</span>
+          <span className="box-title">{t("box.import")}</span>
+          <span className="box-sub">{t("box.importSub")}</span>
         </button>
         <button className="box-card" onClick={onSettings}>
           {SettingsIcon}
-          <span className="box-title">Settings</span>
-          <span className="box-sub">Theme &amp; board</span>
+          <span className="box-title">{t("box.settings")}</span>
+          <span className="box-sub">{t("box.settingsSub")}</span>
         </button>
       </div>
     </div>

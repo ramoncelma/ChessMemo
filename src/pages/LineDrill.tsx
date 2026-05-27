@@ -4,6 +4,7 @@ import { Board } from "../components/Board";
 import { promote, resetLevel, RESPONSE_TIMEOUT_MS } from "../srs";
 import { appendReview } from "../storage";
 import { lichessAnalysisUrl } from "../lichess";
+import { useT } from "../i18n";
 import { type LineItem } from "../useStudies";
 import type { Line, Orientation, Study } from "../types";
 import type { Settings } from "../settings";
@@ -14,6 +15,7 @@ interface Props {
   settings: Settings;
   updateLine: (studyId: string, line: Line) => void;
   freezeOnSuccess: boolean; // "Practice again": keep the date unless missed
+  onOpenRead: (studyId: string, lineId: string) => void;
   onDone: () => void;
 }
 
@@ -34,8 +36,10 @@ export function LineDrill({
   settings,
   updateLine,
   freezeOnSuccess,
+  onOpenRead,
   onDone,
 }: Props) {
+  const t = useT();
   const [queue] = useState<LineItem[]>(() => items);
   const [lineIdx, setLineIdx] = useState(0);
   const [backlog, setBacklog] = useState<LineItem[]>([]);
@@ -76,12 +80,14 @@ export function LineDrill({
       <div className="page center">
         <div className="done-card">
           <div className="done-emoji">♟</div>
-          <h2>Session complete</h2>
+          <h2>{t("drill.sessionComplete")}</h2>
           <p className="muted">
-            {answered} lines{answered ? ` · ${pct}% clean` : ""}
+            {answered
+              ? t("drill.linesSummary", { n: answered, pct })
+              : t("drill.linesSummary0", { n: answered })}
           </p>
           <button className="primary big" onClick={onDone}>
-            Back home
+            {t("common.backHome")}
           </button>
         </div>
       </div>
@@ -202,9 +208,9 @@ export function LineDrill({
         </span>
       </div>
 
-      {retrying && <p className="retry-banner">Second chance — fix your misses</p>}
+      {retrying && <p className="retry-banner">{t("drill.secondChance")}</p>}
 
-      <div className="line-context">{playedSans || "Starting position"}</div>
+      <div className="line-context">{playedSans || t("common.startingPosition")}</div>
 
       <Board
         fen={fen}
@@ -220,17 +226,19 @@ export function LineDrill({
         {phase === "awaiting" && (
           <div className="awaiting-row">
             <span className="turn-pill">
-              {orientation === "white" ? "White" : "Black"} to move
+              {t("drill.toMove", {
+                side: orientation === "white" ? t("common.white") : t("common.black"),
+              })}
             </span>
             <span className={`timer ${over ? "over" : ""}`}>
-              ⏱ {(elapsed / 1000).toFixed(0)}s{over ? " · timed out" : ""}
+              ⏱ {(elapsed / 1000).toFixed(0)}s{over ? t("drill.timedOut") : ""}
             </span>
             <button
               className="hint-btn"
               disabled={hinted}
               onClick={() => setHinted(true)}
             >
-              {hinted ? "Hint shown" : "💡 Hint"}
+              {hinted ? t("drill.hintShown") : t("drill.hint")}
             </button>
           </div>
         )}
@@ -238,21 +246,29 @@ export function LineDrill({
         {phase === "wrong" && (
           <div className="wrong-block">
             <span className="result wrong">
-              ✕ The line plays <b>{move.san}</b>
+              ✕ {t("drill.linePlays")} <b>{move.san}</b>
             </span>
-            <a
-              className="analyze-link"
-              href={lichessAnalysisUrl(playedSans, orientation)}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Analyze on Lichess ↗
-            </a>
+            <div className="wrong-links">
+              <a
+                className="analyze-link"
+                href={lichessAnalysisUrl(playedSans, orientation)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {t("drill.analyze")}
+              </a>
+              <button
+                className="analyze-link"
+                onClick={() => onOpenRead(current!.studyId, line.id)}
+              >
+                {t("drill.openRead")}
+              </button>
+            </div>
             <button
               className="primary big"
               onClick={() => advancePast(tIdx, pending, true)}
             >
-              Continue line
+              {t("drill.continue")}
             </button>
           </div>
         )}
@@ -260,12 +276,12 @@ export function LineDrill({
         {phase === "done" && (
           <div className="wrong-block">
             <span className={`result ${lastClean ? "correct" : "wrong"}`}>
-              {lastClean ? "✓ Line complete — clean!" : "✕ Line had a mistake"}
+              {lastClean ? t("drill.clean") : t("drill.hadMistake")}
             </span>
             <button className="primary big" onClick={goNext}>
               {inMain && lineIdx + 1 >= total && backlog.length === 0
-                ? "Finish"
-                : "Next line"}
+                ? t("drill.finish")
+                : t("drill.nextLine")}
             </button>
           </div>
         )}

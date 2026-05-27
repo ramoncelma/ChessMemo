@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { buildLines, chapterNameFromPgn, studyNameFromPgn } from "../pgn";
 import { SAMPLE_PGN } from "../sample";
+import { useT } from "../i18n";
 import type { Chapter, Line, Orientation, Study } from "../types";
 
 interface Props {
@@ -28,6 +29,7 @@ export function Import({
   removeStudy,
   onDone,
 }: Props) {
+  const t = useT();
   const [target, setTarget] = useState<"new" | string>("new");
   const [name, setName] = useState("");
   const [orientation, setOrientation] = useState<Orientation>("white");
@@ -41,7 +43,7 @@ export function Import({
     setError(null);
     const text = pgn.trim();
     if (!text) {
-      setError("Paste a PGN first.");
+      setError(t("import.errPaste"));
       return;
     }
     const side = isNew ? orientation : (existing?.orientation ?? "white");
@@ -50,11 +52,11 @@ export function Import({
     try {
       lines = buildLines(text, side, chapterIdx);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Could not read that PGN.");
+      setError(e instanceof Error ? e.message : t("import.errInvalid"));
       return;
     }
     if (lines.length === 0) {
-      setError("No lines found for your side — try the other colour.");
+      setError(t("import.errNoLines"));
       return;
     }
     const chapter: Chapter = {
@@ -82,23 +84,25 @@ export function Import({
   return (
     <div className="page">
       <div className="row">
-        <h2>Import PGN</h2>
+        <h2>{t("import.title")}</h2>
         <button className="link" onClick={onDone}>
-          Done
+          {t("common.done")}
         </button>
       </div>
 
+      <p className="muted small">{t("import.intro")}</p>
+
       <section>
-        <h3 className="section-label">Add to</h3>
+        <h3 className="section-label">{t("import.addTo")}</h3>
         <select
           className="select"
           value={target}
           onChange={(e) => setTarget(e.target.value)}
         >
-          <option value="new">＋ New opening</option>
+          <option value="new">{t("import.newOpening")}</option>
           {studies.map((s) => (
             <option key={s.id} value={s.id}>
-              {s.name} ({s.orientation})
+              {s.name}
             </option>
           ))}
         </select>
@@ -107,36 +111,41 @@ export function Import({
       {isNew ? (
         <>
           <section>
-            <h3 className="section-label">Opening name</h3>
+            <h3 className="section-label">{t("import.openingName")}</h3>
             <input
               className="text-input"
-              placeholder="e.g. Vienna Gambit (optional)"
+              placeholder={t("import.namePlaceholder")}
               value={name}
               onChange={(e) => setName(e.target.value)}
             />
           </section>
           <section>
-            <h3 className="section-label">Your side</h3>
+            <h3 className="section-label">{t("import.yourSide")}</h3>
             <div className="seg">
               <button
                 className={orientation === "white" ? "active" : ""}
                 onClick={() => setOrientation("white")}
               >
-                White
+                {t("common.white")}
               </button>
               <button
                 className={orientation === "black" ? "active" : ""}
                 onClick={() => setOrientation("black")}
               >
-                Black
+                {t("common.black")}
               </button>
             </div>
           </section>
         </>
       ) : (
         <p className="muted small">
-          New positions will be added to <b>{existing?.name}</b> (plays{" "}
-          {existing?.orientation}). Existing progress is kept.
+          {t("import.mergeNote", {
+            name: existing?.name ?? "",
+            side:
+              existing?.orientation === "white"
+                ? t("common.white")
+                : t("common.black"),
+          })}
         </p>
       )}
 
@@ -152,16 +161,16 @@ export function Import({
 
       <div className="row">
         <button className="link" onClick={() => setPgn(SAMPLE_PGN)}>
-          Use sample
+          {t("import.useSample")}
         </button>
         <button className="primary" onClick={submit}>
-          {isNew ? "Create opening" : "Add to opening"}
+          {isNew ? t("import.create") : t("import.addToOpening")}
         </button>
       </div>
 
       {studies.length > 0 && (
         <section>
-          <h3 className="section-label">Manage openings</h3>
+          <h3 className="section-label">{t("import.manage")}</h3>
           <ul className="list">
             {studies.map((s) => (
               <li key={s.id} className="study-card">
@@ -171,19 +180,20 @@ export function Import({
                     <button
                       className="link small"
                       onClick={() => {
-                        const next = prompt("Rename opening", s.name);
+                        const next = prompt(t("import.renamePrompt"), s.name);
                         if (next && next.trim()) renameStudy(s.id, next.trim());
                       }}
                     >
-                      Rename
+                      {t("common.rename")}
                     </button>
                     <button
                       className="link danger small"
                       onClick={() => {
-                        if (confirm(`Delete "${s.name}"?`)) removeStudy(s.id);
+                        if (confirm(t("import.deleteConfirm", { name: s.name })))
+                          removeStudy(s.id);
                       }}
                     >
-                      Delete
+                      {t("common.delete")}
                     </button>
                   </div>
                 </div>
@@ -194,12 +204,15 @@ export function Import({
                       <button
                         className="link small"
                         onClick={() => {
-                          const next = prompt("Rename chapter", ch.name);
+                          const next = prompt(
+                            t("import.renameChapterPrompt"),
+                            ch.name,
+                          );
                           if (next && next.trim())
                             renameChapter(s.id, i, next.trim());
                         }}
                       >
-                        Rename
+                        {t("common.rename")}
                       </button>
                     </li>
                   ))}
