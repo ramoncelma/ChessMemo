@@ -900,6 +900,40 @@ button.link.danger {
   white-space: nowrap;
 }
 
+.cat-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+.cat-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  color: var(--muted);
+  cursor: pointer;
+}
+
+.cat-chip input {
+  appearance: none;
+  width: 0;
+  height: 0;
+  margin: 0;
+}
+
+.cat-chip.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+  font-weight: 600;
+}
+
 .speed-list {
   display: flex;
   flex-direction: column;

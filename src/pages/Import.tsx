@@ -2,6 +2,7 @@ import { useState } from "react";
 import { buildLines, chapterNameFromPgn, studyNameFromPgn } from "../pgn";
 import { SAMPLE_PGN } from "../sample";
 import { useT } from "../i18n";
+import { SPEEDS, type Speed } from "../settings";
 import type { Chapter, Line, Orientation, Study } from "../types";
 
 interface Props {
@@ -11,6 +12,7 @@ interface Props {
   renameStudy: (id: string, name: string) => void;
   renameChapter: (id: string, idx: number, name: string) => void;
   removeStudy: (id: string) => void;
+  setCategories: (id: string, categories: Speed[]) => void;
   onDone: () => void;
 }
 
@@ -27,12 +29,18 @@ export function Import({
   renameStudy,
   renameChapter,
   removeStudy,
+  setCategories,
   onDone,
 }: Props) {
   const t = useT();
   const [target, setTarget] = useState<"new" | string>("new");
   const [name, setName] = useState("");
   const [orientation, setOrientation] = useState<Orientation>("white");
+  const [cats, setCats] = useState<Record<Speed, boolean>>(() => {
+    const o = {} as Record<Speed, boolean>;
+    for (const s of SPEEDS) o[s] = true;
+    return o;
+  });
   const [pgn, setPgn] = useState("");
   const [error, setError] = useState<string | null>(null);
 
@@ -70,6 +78,7 @@ export function Import({
         name: name.trim() || studyNameFromPgn(text, "Untitled opening"),
         orientation: side,
         chapters: [chapter],
+        categories: SPEEDS.filter((s) => cats[s]),
         createdAt: Date.now(),
         lines,
       });
@@ -136,6 +145,23 @@ export function Import({
               </button>
             </div>
           </section>
+          <section>
+            <h3 className="section-label">{t("settings.gameTypes")}</h3>
+            <div className="speed-list">
+              {SPEEDS.map((sp) => (
+                <label key={sp} className="speed-row">
+                  <input
+                    type="checkbox"
+                    checked={cats[sp]}
+                    onChange={(e) =>
+                      setCats((c) => ({ ...c, [sp]: e.target.checked }))
+                    }
+                  />
+                  {t(`speed.${sp}`)}
+                </label>
+              ))}
+            </div>
+          </section>
         </>
       ) : (
         <p className="muted small">
@@ -196,6 +222,28 @@ export function Import({
                       {t("common.delete")}
                     </button>
                   </div>
+                </div>
+                <div className="cat-row">
+                  {SPEEDS.map((sp) => {
+                    const on = s.categories.includes(sp);
+                    return (
+                      <label key={sp} className={`cat-chip ${on ? "on" : ""}`}>
+                        <input
+                          type="checkbox"
+                          checked={on}
+                          onChange={(e) =>
+                            setCategories(
+                              s.id,
+                              e.target.checked
+                                ? [...s.categories, sp]
+                                : s.categories.filter((c) => c !== sp),
+                            )
+                          }
+                        />
+                        {t(`speed.${sp}`)}
+                      </label>
+                    );
+                  })}
                 </div>
                 <ul className="chapter-list">
                   {s.chapters.map((ch, i) => (

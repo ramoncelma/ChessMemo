@@ -1,6 +1,7 @@
 import { get, set } from "idb-keyval";
 import { buildLines } from "./pgn";
 import { newSchedule } from "./srs";
+import { SPEEDS } from "./settings";
 import type { Chapter, Line, Study } from "./types";
 
 const STUDIES_KEY = "chessmemo.studies";
@@ -35,7 +36,7 @@ function normalize(studies: Study[]): Study[] {
       }));
     }
 
-    return { ...s, chapters, lines };
+    return { ...s, chapters, categories: s.categories ?? [...SPEEDS], lines };
   });
 }
 

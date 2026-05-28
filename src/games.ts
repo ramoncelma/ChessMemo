@@ -1,7 +1,6 @@
 import { get, set } from "idb-keyval";
 import type { Speed } from "./settings";
 import type { Study } from "./types";
-
 export interface RealGame {
   id: string;
   url: string;
@@ -147,6 +146,8 @@ export function analyzeAll(studies: Study[], games: RealGame[]): StudyReport[] {
   return studies.map((study) => {
     const report: StudyReport = { study, followed: [], deviations: [] };
     for (const game of games) {
+      // A repertoire only applies to game modes it is tagged for.
+      if (!study.categories.includes(game.speed as Speed)) continue;
       const v = analyzeGame(study, game);
       if (v.kind === "followed") report.followed.push(game);
       else if (v.kind === "deviation")

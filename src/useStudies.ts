@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { loadStudies, saveStudies } from "./storage";
 import { isDue } from "./srs";
 import type { Chapter, Line, Orientation, Study } from "./types";
+import type { Speed } from "./settings";
 
 export function useStudies() {
   const [studies, setStudies] = useState<Study[]>([]);
@@ -86,6 +87,12 @@ export function useStudies() {
     [studies, persist],
   );
 
+  const setCategories = useCallback(
+    (id: string, categories: Speed[]) =>
+      persist(studies.map((s) => (s.id === id ? { ...s, categories } : s))),
+    [studies, persist],
+  );
+
   return {
     studies,
     loaded,
@@ -95,6 +102,7 @@ export function useStudies() {
     renameStudy,
     renameChapter,
     addChapter,
+    setCategories,
     persist,
   };
 }

@@ -36,6 +36,7 @@ export default function App() {
     renameStudy,
     renameChapter,
     addChapter,
+    setCategories,
   } = useStudies();
   const {
     settings,
@@ -147,6 +148,7 @@ export default function App() {
               renameStudy={renameStudy}
               renameChapter={renameChapter}
               removeStudy={removeStudy}
+              setCategories={setCategories}
               onDone={() => setTab("dashboard")}
             />
           )}

@@ -1,4 +1,5 @@
 import type { Schedule } from "./srs";
+import type { Speed } from "./settings";
 
 export type Orientation = "white" | "black";
 
@@ -37,6 +38,7 @@ export interface Study {
   name: string;
   orientation: Orientation;
   chapters: Chapter[];
+  categories: Speed[]; // game modes this repertoire is for
   createdAt: number;
   lines: Line[];
 }
