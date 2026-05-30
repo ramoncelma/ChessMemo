@@ -54,6 +54,7 @@ export interface Settings {
   positionMissResetsLine: boolean;
   lang: Lang;
   lichessUser: string;
+  chesscomUser: string;
   importSince: string; // YYYY-MM-DD
   speeds: Record<Speed, boolean>;
 }
@@ -65,6 +66,7 @@ const DEFAULTS: Settings = {
   positionMissResetsLine: false,
   lang: "en",
   lichessUser: "",
+  chesscomUser: "",
   importSince: "",
   speeds: {
     bullet: false,
@@ -106,6 +108,8 @@ export function useSettings() {
     setLang: (lang: Lang) => setSettings((s) => ({ ...s, lang })),
     setLichessUser: (lichessUser: string) =>
       setSettings((s) => ({ ...s, lichessUser })),
+    setChesscomUser: (chesscomUser: string) =>
+      setSettings((s) => ({ ...s, chesscomUser })),
     setImportSince: (importSince: string) =>
       setSettings((s) => ({ ...s, importSince })),
     setSpeed: (speed: Speed, on: boolean) =>

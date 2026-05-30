@@ -3,7 +3,7 @@ import { Dashboard } from "./pages/Dashboard";
 import { Practice } from "./pages/Practice";
 import { ReadList } from "./pages/ReadList";
 import { ReadView } from "./pages/ReadView";
-import { Import } from "./pages/Import";
+import { Repertoire } from "./pages/Repertoire";
 import { LineDrill } from "./pages/LineDrill";
 import { PositionDrill } from "./pages/PositionDrill";
 import { RealGames } from "./pages/RealGames";
@@ -17,7 +17,7 @@ type Tab =
   | "practice"
   | "read"
   | "realgames"
-  | "import"
+  | "repertoire"
   | "settings"
   | "drill";
 
@@ -46,6 +46,7 @@ export default function App() {
     setPositionMissResetsLine,
     setLang,
     setLichessUser,
+    setChesscomUser,
     setImportSince,
     setSpeed,
   } = useSettings();
@@ -101,7 +102,7 @@ export default function App() {
                 setReadingLineId(null);
                 setTab("read");
               }}
-              onImport={() => setTab("import")}
+              onImport={() => setTab("repertoire")}
               onSettings={() => setTab("settings")}
               onStartLine={startLine}
             />
@@ -111,7 +112,7 @@ export default function App() {
               studies={studies}
               onStartLine={startLine}
               onStartPosition={startPosition}
-              onImport={() => setTab("import")}
+              onImport={() => setTab("repertoire")}
             />
           )}
           {tab === "read" &&
@@ -130,7 +131,7 @@ export default function App() {
               <ReadList
                 studies={studies}
                 onRead={(id) => openRead(id, null)}
-                onImport={() => setTab("import")}
+                onImport={() => setTab("repertoire")}
               />
             ))}
           {tab === "realgames" && (
@@ -140,9 +141,10 @@ export default function App() {
               onSettings={() => setTab("settings")}
             />
           )}
-          {tab === "import" && (
-            <Import
+          {tab === "repertoire" && (
+            <Repertoire
               studies={studies}
+              settings={settings}
               addStudy={addStudy}
               addChapter={addChapter}
               renameStudy={renameStudy}
@@ -161,6 +163,7 @@ export default function App() {
               setPositionMissResetsLine={setPositionMissResetsLine}
               setLang={setLang}
               setLichessUser={setLichessUser}
+              setChesscomUser={setChesscomUser}
               setImportSince={setImportSince}
               setSpeed={setSpeed}
             />
@@ -222,11 +225,11 @@ export default function App() {
               {t("nav.realGames")}
             </button>
             <button
-              className={tab === "import" ? "active" : ""}
-              onClick={() => setTab("import")}
+              className={tab === "repertoire" ? "active" : ""}
+              onClick={() => setTab("repertoire")}
             >
               <span className="tab-ico">＋</span>
-              {t("nav.import")}
+              {t("nav.repertoire")}
             </button>
             <button
               className={tab === "settings" ? "active" : ""}

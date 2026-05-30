@@ -900,6 +900,44 @@ button.link.danger {
   white-space: nowrap;
 }
 
+.line-notation {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+  font-family: ui-monospace, "SF Mono", monospace;
+  font-size: 0.9rem;
+  line-height: 2;
+  word-break: keep-all;
+}
+
+.line-notation .moveno {
+  color: var(--muted);
+  margin-right: 3px;
+  margin-left: 4px;
+}
+
+.line-notation .move {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 6px;
+  background: none;
+  border: none;
+  color: var(--text);
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.line-notation button.move:hover {
+  background: var(--surface-2);
+}
+
+.line-notation .move.current {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 700;
+}
+
 .cat-row {
   display: flex;
   flex-wrap: wrap;

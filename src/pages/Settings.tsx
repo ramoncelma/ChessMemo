@@ -21,6 +21,7 @@ interface Props {
   setPositionMissResetsLine: (v: boolean) => void;
   setLang: (lang: Lang) => void;
   setLichessUser: (v: string) => void;
+  setChesscomUser: (v: string) => void;
   setImportSince: (v: string) => void;
   setSpeed: (speed: Speed, on: boolean) => void;
 }
@@ -39,6 +40,7 @@ export function Settings({
   setPositionMissResetsLine,
   setLang,
   setLichessUser,
+  setChesscomUser,
   setImportSince,
   setSpeed,
 }: Props) {
@@ -179,6 +181,16 @@ export function Settings({
               placeholder="magnuscarlsen"
               value={settings.lichessUser}
               onChange={(e) => setLichessUser(e.target.value)}
+            />
+          </section>
+
+          <section>
+            <h3 className="section-label">{t("settings.chesscomUser")}</h3>
+            <input
+              className="text-input"
+              placeholder="hikaru"
+              value={settings.chesscomUser}
+              onChange={(e) => setChesscomUser(e.target.value)}
             />
           </section>
 

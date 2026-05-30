@@ -1,4 +1,5 @@
 import { get, set } from "idb-keyval";
+import { Chess } from "chess.js";
 import type { Speed } from "./settings";
 import type { Study } from "./types";
 export interface RealGame {
@@ -69,6 +70,84 @@ export async function fetchLichessGames(
     });
   }
   return games;
+}
+
+// Fetch a user's games from Chess.com. The public API has CORS enabled and
+// returns monthly archives; we walk the archives from `sinceMs` onward.
+export async function fetchChessComGames(
+  user: string,
+  sinceMs: number,
+  speeds: Speed[],
+): Promise<RealGame[]> {
+  const out: RealGame[] = [];
+  const uname = user.toLowerCase();
+  // chess.com calls correspondence "daily" and has no "classical" class.
+  const accept = new Set<string>(
+    speeds.map((s) => (s === "correspondence" ? "daily" : s)),
+  );
+
+  const arcRes = await fetch(
+    `https://api.chess.com/pub/player/${encodeURIComponent(user)}/games/archives`,
+  );
+  if (!arcRes.ok) throw new Error(`Chess.com ${arcRes.status}`);
+  const archives: string[] = (await arcRes.json()).archives ?? [];
+
+  const since = new Date(sinceMs);
+  const sinceYM = since.getFullYear() * 12 + since.getMonth();
+
+  for (const url of archives) {
+    const m = url.match(/(\d{4})\/(\d{2})$/);
+    if (!m) continue;
+    const ym = parseInt(m[1], 10) * 12 + parseInt(m[2], 10) - 1;
+    if (ym < sinceYM) continue;
+
+    const monthRes = await fetch(url);
+    if (!monthRes.ok) continue;
+    const games: unknown[] = (await monthRes.json()).games ?? [];
+
+    for (const raw of games) {
+      const g = raw as Record<string, unknown>;
+      const endTime = ((g.end_time as number) ?? 0) * 1000;
+      if (endTime < sinceMs) continue;
+      const tc = (g.time_class as string) ?? "";
+      if (!accept.has(tc)) continue;
+
+      const white = (
+        ((g.white as Record<string, unknown>)?.username as string) ?? ""
+      ).toLowerCase();
+      const black = (
+        ((g.black as Record<string, unknown>)?.username as string) ?? ""
+      ).toLowerCase();
+      const color: "white" | "black" | null =
+        white === uname ? "white" : black === uname ? "black" : null;
+      if (!color) continue;
+
+      const opp =
+        color === "white"
+          ? ((g.black as Record<string, unknown>)?.username as string) ?? "?"
+          : ((g.white as Record<string, unknown>)?.username as string) ?? "?";
+
+      let moves: string[] = [];
+      try {
+        const ch = new Chess();
+        ch.loadPgn((g.pgn as string) ?? "");
+        moves = ch.history();
+      } catch {
+        continue;
+      }
+
+      out.push({
+        id: (g.url as string) ?? `cc-${endTime}`,
+        url: (g.url as string) ?? "",
+        color,
+        speed: tc === "daily" ? "correspondence" : tc,
+        createdAt: endTime,
+        opponent: opp,
+        moves,
+      });
+    }
+  }
+  return out;
 }
 
 // --- Deviation analysis ---

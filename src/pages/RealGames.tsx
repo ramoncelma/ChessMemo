@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useT } from "../i18n";
 import {
   analyzeAll,
+  fetchChessComGames,
   fetchLichessGames,
   loadGames,
   saveGames,
@@ -28,7 +29,9 @@ export function RealGames({ studies, settings, onSettings }: Props) {
     loadGames().then(setGames);
   }, []);
 
-  const configured = settings.lichessUser.trim() && settings.importSince;
+  const lichessUser = settings.lichessUser.trim();
+  const chesscomUser = settings.chesscomUser.trim();
+  const configured = (lichessUser || chesscomUser) && settings.importSince;
 
   async function fetchNow() {
     setError(null);
@@ -36,7 +39,15 @@ export function RealGames({ studies, settings, onSettings }: Props) {
     try {
       const since = new Date(settings.importSince).getTime();
       const speeds = SPEEDS.filter((s) => settings.speeds[s]);
-      const g = await fetchLichessGames(settings.lichessUser.trim(), since, speeds);
+      const results = await Promise.all([
+        lichessUser
+          ? fetchLichessGames(lichessUser, since, speeds)
+          : Promise.resolve([] as RealGame[]),
+        chesscomUser
+          ? fetchChessComGames(chesscomUser, since, speeds)
+          : Promise.resolve([] as RealGame[]),
+      ]);
+      const g = [...results[0], ...results[1]];
       await saveGames(g);
       setGames(g);
     } catch {

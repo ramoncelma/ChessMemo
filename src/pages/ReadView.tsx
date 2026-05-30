@@ -5,7 +5,8 @@ import { isDue } from "../srs";
 import { formatCountdown, summarizeTimes } from "../stats";
 import { useT } from "../i18n";
 import { LevelBadge } from "../components/LevelBadge";
-import { type LineItem } from "../useStudies";
+import { ChapterReader } from "./ChapterReader";
+import { chapterLineItems, type LineItem } from "../useStudies";
 import type { Line, Study } from "../types";
 import type { Settings } from "../settings";
 
@@ -30,9 +31,22 @@ export function ReadView({
     : 0;
   const [chapterIdx, setChapterIdx] = useState(initialChapter);
   const [openLineId, setOpenLineId] = useState<string | null>(initialLineId ?? null);
+  const [allLines, setAllLines] = useState(false);
 
   const chapterLines = study.lines.filter((l) => l.chapterIdx === chapterIdx);
   const openLine = study.lines.find((l) => l.id === openLineId) ?? null;
+
+  if (allLines) {
+    return (
+      <ChapterReader
+        study={study}
+        chapterIdx={chapterIdx}
+        settings={settings}
+        onBack={() => setAllLines(false)}
+        onPractice={onPractice}
+      />
+    );
+  }
 
   if (openLine) {
     return (
@@ -70,6 +84,16 @@ export function ReadView({
           ))}
         </select>
       )}
+
+      <div className="practice-modes">
+        <button onClick={() => setAllLines(true)}>{t("read.allLines")}</button>
+        <button
+          className="primary"
+          onClick={() => onPractice(chapterLineItems(study, chapterIdx), false)}
+        >
+          {t("practice.chapter")}
+        </button>
+      </div>
 
       <ul className="list">
         {chapterLines.map((l) => {
@@ -146,8 +170,26 @@ function LineBrowser({
         </button>
       </div>
 
-      <div className="line-context">
-        {playedSans || t("common.startingPosition")}
+      <div className="line-notation">
+        <button
+          className={`move ${ply === 0 ? "current" : ""}`}
+          onClick={() => setPly(0)}
+        >
+          {t("common.startingPosition")}
+        </button>
+        {line.moves.map((m, i) => (
+          <span key={i}>
+            {i % 2 === 0 && (
+              <span className="moveno">{Math.floor(i / 2) + 1}.</span>
+            )}
+            <button
+              className={`move ${ply === i + 1 ? "current" : ""}`}
+              onClick={() => setPly(i + 1)}
+            >
+              {m.san}
+            </button>
+          </span>
+        ))}
       </div>
 
       <Board

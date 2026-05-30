@@ -19,7 +19,7 @@ interface Props {
   onDone: () => void;
 }
 
-type Phase = "awaiting" | "wrong" | "done";
+type Phase = "awaiting" | "opp" | "wrong" | "done";
 type Timing = { idx: number; ms: number };
 
 function nextTrainee(line: Line, from: number, want: "w" | "b"): number {
@@ -52,6 +52,7 @@ export function LineDrill({
   const [cleanCount, setCleanCount] = useState(0);
   const [pending, setPending] = useState<Timing[]>([]);
   const [elapsed, setElapsed] = useState(0);
+  const [interFen, setInterFen] = useState<string | null>(null);
   const moveStart = useRef(Date.now());
 
   const inMain = lineIdx < queue.length;
@@ -98,7 +99,8 @@ export function LineDrill({
   const playedSans = line.moves.slice(0, tIdx).map((m) => m.san).join(" ");
 
   let fen: string;
-  if (phase === "done") fen = line.moves[line.moves.length - 1].fenAfter;
+  if (interFen) fen = interFen;
+  else if (phase === "done") fen = line.moves[line.moves.length - 1].fenAfter;
   else if (phase === "wrong") fen = move.fenAfter;
   else fen = move.fenBefore;
 
@@ -165,7 +167,13 @@ export function LineDrill({
     if (from === move.from && to === move.to) {
       const hadMistake = mistake || hinted || timedOut;
       if (timedOut) setMistake(true);
-      advancePast(tIdx, localPending, hadMistake);
+      // Briefly show the user's move, then reveal the opponent's reply.
+      setInterFen(move.fenAfter);
+      setPhase("opp");
+      setTimeout(() => {
+        setInterFen(null);
+        advancePast(tIdx, localPending, hadMistake);
+      }, 500);
     } else {
       setMistake(true);
       setPhase("wrong");
