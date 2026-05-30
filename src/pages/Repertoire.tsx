@@ -11,6 +11,7 @@ interface Props {
   settings: Settings;
   addStudy: (s: Study) => void;
   addChapter: (id: string, chapter: Chapter, lines: Line[]) => void;
+  addToChapter: (studyId: string, chapterIdx: number, additionalPgn: string) => void;
   renameStudy: (id: string, name: string) => void;
   renameChapter: (id: string, idx: number, name: string) => void;
   removeStudy: (id: string) => void;
@@ -25,6 +26,7 @@ export function Repertoire({
   settings,
   addStudy,
   addChapter,
+  addToChapter,
   renameStudy,
   renameChapter,
   removeStudy,
@@ -58,6 +60,7 @@ export function Repertoire({
           studies={studies}
           addStudy={addStudy}
           addChapter={addChapter}
+          addToChapter={addToChapter}
           renameStudy={renameStudy}
           renameChapter={renameChapter}
           removeStudy={removeStudy}
@@ -65,7 +68,14 @@ export function Repertoire({
           onDone={onDone}
         />
       ) : (
-        <ManualBuilder settings={settings} addStudy={addStudy} onDone={onDone} />
+        <ManualBuilder
+          studies={studies}
+          settings={settings}
+          addStudy={addStudy}
+          addChapter={addChapter}
+          addToChapter={addToChapter}
+          onDone={onDone}
+        />
       )}
     </div>
   );

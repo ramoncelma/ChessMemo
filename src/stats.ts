@@ -46,7 +46,9 @@ export function summarizeTimes(times: number[]): TimeSummary | null {
 
 export function dueCount(studies: Study[], now = Date.now()): number {
   let n = 0;
-  for (const s of studies) for (const l of s.lines) if (isDue(l.sched, now)) n++;
+  for (const s of studies)
+    for (const l of s.lines)
+      if (!l.paused && isDue(l.sched, now)) n++;
   return n;
 }
 
@@ -54,6 +56,7 @@ export function nextReviewAt(studies: Study[], now = Date.now()): Date | null {
   let soonest: number | null = null;
   for (const s of studies) {
     for (const l of s.lines) {
+      if (l.paused) continue;
       const due = l.sched.due;
       if (due > now && (soonest === null || due < soonest)) soonest = due;
     }
@@ -152,6 +155,7 @@ export function forecast(studies: Study[], days = 14, now = new Date()): Forecas
 
   for (const s of studies) {
     for (const l of s.lines) {
+      if (l.paused) continue;
       const dm = new Date(l.sched.due);
       dm.setHours(0, 0, 0, 0);
       let idx = Math.round((dm.getTime() - base) / dayMs);

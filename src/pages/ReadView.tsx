@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Board } from "../components/Board";
 import { lichessAnalysisUrl } from "../lichess";
 import { isDue } from "../srs";
@@ -16,6 +16,7 @@ interface Props {
   initialLineId?: string | null;
   onBack: () => void;
   onPractice: (items: LineItem[], freeze: boolean) => void;
+  setPaused: (studyId: string, lineId: string, paused: boolean) => void;
 }
 
 export function ReadView({
@@ -24,6 +25,7 @@ export function ReadView({
   initialLineId,
   onBack,
   onPractice,
+  setPaused,
 }: Props) {
   const t = useT();
   const initialChapter = initialLineId
@@ -100,7 +102,10 @@ export function ReadView({
           const due = isDue(l.sched, now);
           const sans = l.moves.map((m) => m.san).join(" ");
           return (
-            <li key={l.id} className="line-row">
+            <li
+              key={l.id}
+              className={`line-row ${l.paused ? "paused" : ""}`}
+            >
               <button
                 className="line-open"
                 onClick={() => setOpenLineId(l.id)}
@@ -110,7 +115,7 @@ export function ReadView({
               </button>
               <div className="line-status">
                 <LevelBadge level={l.sched.level} />
-                {!due && (
+                {!due && !l.paused && (
                   <span className="muted small">
                     {t("read.next", {
                       x: formatCountdown(new Date(l.sched.due)),
@@ -118,11 +123,22 @@ export function ReadView({
                   </span>
                 )}
                 <button
-                  className={due ? "primary small" : "again small"}
-                  onClick={() => onPractice([{ studyId: study.id, line: l }], !due)}
+                  className="link small"
+                  title={l.paused ? "Resume" : "Pause"}
+                  onClick={() => setPaused(study.id, l.id, !l.paused)}
                 >
-                  {due ? t("read.practice") : t("read.practiceAgain")}
+                  {l.paused ? "▶" : "⏸"}
                 </button>
+                {!l.paused && (
+                  <button
+                    className={due ? "primary small" : "again small"}
+                    onClick={() =>
+                      onPractice([{ studyId: study.id, line: l }], !due)
+                    }
+                  >
+                    {due ? t("read.practice") : t("read.practiceAgain")}
+                  </button>
+                )}
               </div>
             </li>
           );
@@ -147,6 +163,18 @@ function LineBrowser({
 }) {
   const t = useT();
   const [ply, setPly] = useState(0);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "ArrowLeft") setPly((p) => Math.max(0, p - 1));
+      else if (e.key === "ArrowRight")
+        setPly((p) => Math.min(line.moves.length, p + 1));
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [line.moves.length]);
+
   const fen = ply === 0 ? line.moves[0].fenBefore : line.moves[ply - 1].fenAfter;
   const playedSans = line.moves.slice(0, ply).map((m) => m.san).join(" ");
   const comment = ply > 0 ? line.moves[ply - 1].comment : undefined;

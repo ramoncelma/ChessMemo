@@ -173,7 +173,7 @@ export function LineDrill({
       setTimeout(() => {
         setInterFen(null);
         advancePast(tIdx, localPending, hadMistake);
-      }, 500);
+      }, settings.opponentDelayMs);
     } else {
       setMistake(true);
       setPhase("wrong");

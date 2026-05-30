@@ -33,6 +33,7 @@ function normalize(studies: Study[]): Study[] {
         sched: l.sched ?? newSchedule(),
         lineTimes: l.lineTimes ?? [],
         moveTimes: l.moveTimes ?? {},
+        paused: l.paused ?? false,
       }));
     }
 

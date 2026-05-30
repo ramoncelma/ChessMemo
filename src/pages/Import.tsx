@@ -9,6 +9,7 @@ interface Props {
   studies: Study[];
   addStudy: (study: Study) => void;
   addChapter: (id: string, chapter: Chapter, lines: Line[]) => void;
+  addToChapter: (studyId: string, chapterIdx: number, additionalPgn: string) => void;
   renameStudy: (id: string, name: string) => void;
   renameChapter: (id: string, idx: number, name: string) => void;
   removeStudy: (id: string) => void;
@@ -26,6 +27,7 @@ export function Import({
   studies,
   addStudy,
   addChapter,
+  addToChapter,
   renameStudy,
   renameChapter,
   removeStudy,
@@ -34,7 +36,9 @@ export function Import({
 }: Props) {
   const t = useT();
   const [target, setTarget] = useState<"new" | string>("new");
+  const [chapterTarget, setChapterTarget] = useState<"new" | number>("new");
   const [name, setName] = useState("");
+  const [chapterName, setChapterName] = useState("");
   const [orientation, setOrientation] = useState<Orientation>("white");
   const [cats, setCats] = useState<Record<Speed, boolean>>(() => {
     const o = {} as Record<Speed, boolean>;
@@ -54,11 +58,20 @@ export function Import({
       setError(t("import.errPaste"));
       return;
     }
+
+    // Merge into an existing chapter — no new lines/chapter creation needed.
+    if (!isNew && existing && typeof chapterTarget === "number") {
+      addToChapter(existing.id, chapterTarget, text);
+      setPgn("");
+      onDone();
+      return;
+    }
+
     const side = isNew ? orientation : (existing?.orientation ?? "white");
-    const chapterIdx = isNew ? 0 : (existing?.chapters.length ?? 0);
+    const newChapterIdx = isNew ? 0 : (existing?.chapters.length ?? 0);
     let lines: Line[];
     try {
-      lines = buildLines(text, side, chapterIdx);
+      lines = buildLines(text, side, newChapterIdx);
     } catch (e) {
       setError(e instanceof Error ? e.message : t("import.errInvalid"));
       return;
@@ -68,7 +81,12 @@ export function Import({
       return;
     }
     const chapter: Chapter = {
-      name: chapterNameFromPgn(text, `Chapter ${(existing?.chapters.length ?? 0) + 1}`),
+      name:
+        chapterName.trim() ||
+        chapterNameFromPgn(
+          text,
+          `Chapter ${(existing?.chapters.length ?? 0) + 1}`,
+        ),
       pgn: text,
     };
 
@@ -87,6 +105,7 @@ export function Import({
     }
     setPgn("");
     setName("");
+    setChapterName("");
     onDone();
   }
 
@@ -117,6 +136,40 @@ export function Import({
         </select>
       </section>
 
+      {!isNew && existing && (
+        <section>
+          <h3 className="section-label">Chapter</h3>
+          <select
+            className="select"
+            value={String(chapterTarget)}
+            onChange={(e) =>
+              setChapterTarget(
+                e.target.value === "new" ? "new" : Number(e.target.value),
+              )
+            }
+          >
+            <option value="new">＋ New chapter</option>
+            {existing.chapters.map((c, i) => (
+              <option key={i} value={i}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </section>
+      )}
+
+      {!isNew && chapterTarget === "new" && (
+        <section>
+          <h3 className="section-label">Chapter name</h3>
+          <input
+            className="text-input"
+            placeholder="e.g. Vienna Gambit — declined"
+            value={chapterName}
+            onChange={(e) => setChapterName(e.target.value)}
+          />
+        </section>
+      )}
+
       {isNew ? (
         <>
           <section>
@@ -126,6 +179,15 @@ export function Import({
               placeholder={t("import.namePlaceholder")}
               value={name}
               onChange={(e) => setName(e.target.value)}
+            />
+          </section>
+          <section>
+            <h3 className="section-label">Chapter name</h3>
+            <input
+              className="text-input"
+              placeholder="Chapter 1"
+              value={chapterName}
+              onChange={(e) => setChapterName(e.target.value)}
             />
           </section>
           <section>
@@ -190,7 +252,11 @@ export function Import({
           {t("import.useSample")}
         </button>
         <button className="primary" onClick={submit}>
-          {isNew ? t("import.create") : t("import.addToOpening")}
+          {isNew
+            ? t("import.create")
+            : typeof chapterTarget === "number"
+              ? "Add to chapter"
+              : t("import.addToOpening")}
         </button>
       </div>
 

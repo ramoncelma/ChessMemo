@@ -57,6 +57,7 @@ export interface Settings {
   chesscomUser: string;
   importSince: string; // YYYY-MM-DD
   speeds: Record<Speed, boolean>;
+  opponentDelayMs: number;
 }
 
 const DEFAULTS: Settings = {
@@ -75,6 +76,7 @@ const DEFAULTS: Settings = {
     classical: true,
     correspondence: false,
   },
+  opponentDelayMs: 350,
 };
 const KEY = "chessmemo.settings";
 
@@ -114,6 +116,8 @@ export function useSettings() {
       setSettings((s) => ({ ...s, importSince })),
     setSpeed: (speed: Speed, on: boolean) =>
       setSettings((s) => ({ ...s, speeds: { ...s.speeds, [speed]: on } })),
+    setOpponentDelayMs: (opponentDelayMs: number) =>
+      setSettings((s) => ({ ...s, opponentDelayMs })),
   };
 }
 

@@ -63,6 +63,59 @@ export function parsePgn(pgn: string): PgnTree {
   return tree;
 }
 
+// Merge two PGN trees: at each level, nodes with the same SAN are unified and
+// their continuations merged. Comments are preserved (existing wins).
+export function mergeTrees(a: PgnTree, b: PgnTree): PgnTree {
+  return { startFen: a.startFen, children: mergeChildren(a.children, b.children) };
+}
+
+function cloneNode(n: PgnNode): PgnNode {
+  return { ...n, children: n.children.map(cloneNode) };
+}
+
+function mergeChildren(a: PgnNode[], b: PgnNode[]): PgnNode[] {
+  const out: PgnNode[] = a.map(cloneNode);
+  for (const bn of b) {
+    const match = out.find((x) => x.san === bn.san);
+    if (match) {
+      match.comment = match.comment || bn.comment;
+      match.children = mergeChildren(match.children, bn.children);
+    } else {
+      out.push(cloneNode(bn));
+    }
+  }
+  return out;
+}
+
+// Serialize a tree back to PGN (mainline inline, variations in parentheses).
+export function treeToPgn(tree: PgnTree, name: string): string {
+  let out = `[Event "${name.replace(/"/g, "'")}"]\n[Result "*"]\n\n`;
+  out += writeSeq(tree.children, 0, true).trim();
+  out += " *";
+  return out;
+}
+
+function writeSeq(
+  nodes: PgnNode[],
+  ply: number,
+  startOfLine: boolean,
+): string {
+  if (nodes.length === 0) return "";
+  const main = nodes[0];
+  let out = "";
+  if (ply % 2 === 0) out += `${Math.floor(ply / 2) + 1}. `;
+  else if (startOfLine) out += `${Math.floor(ply / 2) + 1}... `;
+  out += main.san;
+  if (main.comment)
+    out += ` {${main.comment.replace(/[{}]/g, "")}}`;
+  out += " ";
+  for (let i = 1; i < nodes.length; i++) {
+    out += "(" + writeSeq([nodes[i]], ply, true).trim() + ") ";
+  }
+  out += writeSeq(main.children, ply + 1, nodes.length > 1);
+  return out;
+}
+
 // All complete root-to-leaf paths through the tree (each is one line).
 export function enumerateLines(tree: PgnTree): PgnNode[][] {
   const out: PgnNode[][] = [];

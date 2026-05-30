@@ -10,6 +10,7 @@ import {
   type Theme,
 } from "../settings";
 import { LANGS, type Lang, useT, levelName, levelInterval } from "../i18n";
+import { download, exportAll, importAll } from "../backup";
 
 const PREVIEW_FEN = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1";
 
@@ -24,6 +25,7 @@ interface Props {
   setChesscomUser: (v: string) => void;
   setImportSince: (v: string) => void;
   setSpeed: (speed: Speed, on: boolean) => void;
+  setOpponentDelayMs: (ms: number) => void;
 }
 
 type Section = "appearance" | "practice" | "about";
@@ -43,9 +45,27 @@ export function Settings({
   setChesscomUser,
   setImportSince,
   setSpeed,
+  setOpponentDelayMs,
 }: Props) {
   const t = useT();
   const [section, setSection] = useState<Section>("appearance");
+
+  async function exportData() {
+    const b = await exportAll();
+    download(`chessmemo-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(b));
+  }
+
+  async function importData(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    try {
+      const text = await file.text();
+      await importAll(JSON.parse(text));
+      window.location.reload();
+    } catch (err) {
+      alert(err instanceof Error ? err.message : "Import failed");
+    }
+  }
 
   return (
     <div className="page">
@@ -172,6 +192,42 @@ export function Settings({
                 onChange={(e) => setPositionMissResetsLine(e.target.checked)}
               />
             </label>
+            <div className="delay-row">
+              <div>
+                <div className="toggle-title">Opponent move delay</div>
+                <div className="muted small">
+                  How long ({settings.opponentDelayMs} ms) the board waits
+                  before showing the opponent's reply.
+                </div>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={1500}
+                step={50}
+                value={settings.opponentDelayMs}
+                onChange={(e) => setOpponentDelayMs(Number(e.target.value))}
+              />
+            </div>
+          </section>
+
+          <section>
+            <h3 className="section-label">Profile data</h3>
+            <p className="muted small">
+              Export to back up or move your data; import on another device.
+            </p>
+            <div className="row">
+              <button onClick={exportData}>Export data</button>
+              <label className="primary import-label">
+                Import data
+                <input
+                  type="file"
+                  accept="application/json"
+                  onChange={importData}
+                  style={{ display: "none" }}
+                />
+              </label>
+            </div>
           </section>
 
           <section>

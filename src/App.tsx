@@ -36,7 +36,9 @@ export default function App() {
     renameStudy,
     renameChapter,
     addChapter,
+    addToChapter,
     setCategories,
+    setPaused,
   } = useStudies();
   const {
     settings,
@@ -49,6 +51,7 @@ export default function App() {
     setChesscomUser,
     setImportSince,
     setSpeed,
+    setOpponentDelayMs,
   } = useSettings();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [readingId, setReadingId] = useState<string | null>(null);
@@ -126,6 +129,7 @@ export default function App() {
                   setReadingLineId(null);
                 }}
                 onPractice={startLine}
+                setPaused={setPaused}
               />
             ) : (
               <ReadList
@@ -147,6 +151,7 @@ export default function App() {
               settings={settings}
               addStudy={addStudy}
               addChapter={addChapter}
+              addToChapter={addToChapter}
               renameStudy={renameStudy}
               renameChapter={renameChapter}
               removeStudy={removeStudy}
@@ -166,6 +171,7 @@ export default function App() {
               setChesscomUser={setChesscomUser}
               setImportSince={setImportSince}
               setSpeed={setSpeed}
+              setOpponentDelayMs={setOpponentDelayMs}
             />
           )}
           {tab === "drill" && drill?.kind === "line" && (

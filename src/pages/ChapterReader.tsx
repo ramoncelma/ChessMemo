@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Board } from "../components/Board";
 import { MoveTree } from "../components/MoveTree";
 import { lichessAnalysisUrl } from "../lichess";
@@ -50,6 +50,24 @@ export function ChapterReader({
   const current = path[path.length - 1] ?? null;
   const fen = current ? current.fenAfter : tree.startFen;
   const sans = path.map((n) => n.san).join(" ");
+  const nextNodes = current ? current.children : tree.children;
+
+  useEffect(() => {
+    if (!tree) return;
+    function onKey(e: KeyboardEvent) {
+      if (!tree) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if (e.key === "ArrowLeft") setPath((p) => p.slice(0, -1));
+      else if (e.key === "ArrowRight")
+        setPath((p) => {
+          const cur = p[p.length - 1];
+          const children = cur ? cur.children : tree.children;
+          return children.length > 0 ? [...p, children[0]] : p;
+        });
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [tree]);
 
   return (
     <div className="page read-page">
@@ -95,6 +113,15 @@ export function ChapterReader({
             >
               {t("read.prev")}
             </button>
+            <button
+              className="nav-btn"
+              disabled={nextNodes.length === 0}
+              onClick={() =>
+                nextNodes.length > 0 && setPath((p) => [...p, nextNodes[0]])
+              }
+            >
+              {t("read.nextBtn")}
+            </button>
             <a
               className="analyze-link"
               href={lichessAnalysisUrl(sans, study.orientation)}
@@ -104,6 +131,25 @@ export function ChapterReader({
               {t("read.lichess")}
             </a>
           </div>
+
+          {nextNodes.length > 1 && (
+            <div className="next-moves">
+              <span className="muted small">
+                {nextNodes.length} options:
+              </span>
+              <div className="move-choices">
+                {nextNodes.map((n, i) => (
+                  <button
+                    key={i}
+                    className={`move-choice ${i === 0 ? "main" : ""}`}
+                    onClick={() => setPath((p) => [...p, n])}
+                  >
+                    {n.san}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="read-panel">

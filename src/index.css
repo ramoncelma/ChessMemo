@@ -938,6 +938,35 @@ button.link.danger {
   font-weight: 700;
 }
 
+.line-row.paused {
+  opacity: 0.55;
+}
+
+.delay-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-top: 10px;
+}
+
+.delay-row input[type="range"] {
+  width: 100%;
+}
+
+.import-label {
+  display: inline-block;
+  padding: 13px 18px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+  font-weight: 650;
+  cursor: pointer;
+}
+
 .cat-row {
   display: flex;
   flex-wrap: wrap;

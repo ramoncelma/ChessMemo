@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { loadStudies, saveStudies } from "./storage";
+import { buildLines } from "./pgn";
+import { mergeTrees, parsePgn, treeToPgn } from "./pgnTree";
 import { isDue } from "./srs";
 import type { Chapter, Line, Orientation, Study } from "./types";
 import type { Speed } from "./settings";
@@ -93,6 +95,77 @@ export function useStudies() {
     [studies, persist],
   );
 
+  // Overlay a new PGN onto an existing chapter. Overlapping lines keep their
+   // schedule and stats; new lines start fresh; the chapter PGN is replaced
+  // with the merged tree so Read shows everything.
+  const addToChapter = useCallback(
+    (studyId: string, chapterIdx: number, additionalPgn: string) => {
+      persist(
+        studies.map((s) => {
+          if (s.id !== studyId) return s;
+          const chapter = s.chapters[chapterIdx];
+          if (!chapter) return s;
+          try {
+            const aTree = parsePgn(chapter.pgn);
+            const bTree = parsePgn(additionalPgn);
+            const merged = mergeTrees(aTree, bTree);
+            const newPgn = treeToPgn(merged, chapter.name);
+            const rebuilt = buildLines(newPgn, s.orientation, chapterIdx);
+            const existingBySig = new Map(
+              s.lines
+                .filter((l) => l.chapterIdx === chapterIdx)
+                .map((l) => [l.moves.map((m) => m.san).join(" "), l]),
+            );
+            const reconciled = rebuilt.map((nl) => {
+              const sig = nl.moves.map((m) => m.san).join(" ");
+              const ex = existingBySig.get(sig);
+              if (!ex) return nl;
+              return {
+                ...nl,
+                id: ex.id,
+                sched: ex.sched,
+                attempts: ex.attempts,
+                misses: ex.misses,
+                lineTimes: ex.lineTimes,
+                moveTimes: ex.moveTimes,
+                paused: ex.paused,
+                weight: ex.weight,
+              };
+            });
+            const otherLines = s.lines.filter(
+              (l) => l.chapterIdx !== chapterIdx,
+            );
+            const chapters = s.chapters.map((c, i) =>
+              i === chapterIdx ? { ...c, pgn: newPgn } : c,
+            );
+            return { ...s, chapters, lines: [...otherLines, ...reconciled] };
+          } catch {
+            return s;
+          }
+        }),
+      );
+    },
+    [studies, persist],
+  );
+
+  const setPaused = useCallback(
+    (studyId: string, lineId: string, paused: boolean) => {
+      persist(
+        studies.map((s) =>
+          s.id === studyId
+            ? {
+                ...s,
+                lines: s.lines.map((l) =>
+                  l.id === lineId ? { ...l, paused } : l,
+                ),
+              }
+            : s,
+        ),
+      );
+    },
+    [studies, persist],
+  );
+
   return {
     studies,
     loaded,
@@ -102,7 +175,9 @@ export function useStudies() {
     renameStudy,
     renameChapter,
     addChapter,
+    addToChapter,
     setCategories,
+    setPaused,
     persist,
   };
 }
@@ -112,13 +187,17 @@ export interface LineItem {
   line: Line;
 }
 
+// Paused lines are excluded from practice and scheduling. Read-mode UIs work
+// directly with `study.lines` so they still see paused lines.
 export function lineItemsOf(study: Study): LineItem[] {
-  return study.lines.map((line) => ({ studyId: study.id, line }));
+  return study.lines
+    .filter((l) => !l.paused)
+    .map((line) => ({ studyId: study.id, line }));
 }
 
 export function chapterLineItems(study: Study, idx: number): LineItem[] {
   return study.lines
-    .filter((l) => l.chapterIdx === idx)
+    .filter((l) => l.chapterIdx === idx && !l.paused)
     .map((line) => ({ studyId: study.id, line }));
 }
 
@@ -127,6 +206,7 @@ export function dueLines(studies: Study[]): LineItem[] {
   const items: LineItem[] = [];
   for (const s of studies) {
     for (const line of s.lines) {
+      if (line.paused) continue;
       if (isDue(line.sched, now)) items.push({ studyId: s.id, line });
     }
   }

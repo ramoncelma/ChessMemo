@@ -25,6 +25,8 @@ export interface Line {
   sched: Schedule;
   lineTimes: number[]; // response times (ms) to complete the line
   moveTimes: Record<number, number[]>; // move index -> response times (ms)
+  paused?: boolean; // excluded from practice and SRS calendars
+  weight?: number; // 0..100 within chapter, from masters frequency
 }
 
 // A single PGN added to an opening. An opening can hold several.
