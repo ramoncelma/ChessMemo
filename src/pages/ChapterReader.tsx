@@ -1,7 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Board } from "../components/Board";
 import { MoveTree } from "../components/MoveTree";
+import { EnginePanel } from "../components/EnginePanel";
 import { lichessAnalysisUrl } from "../lichess";
+import { fetchEval, type EvalResult } from "../engine";
 import { parsePgn, type PgnNode } from "../pgnTree";
 import { useT } from "../i18n";
 import { chapterLineItems, type LineItem } from "../useStudies";
@@ -33,6 +35,7 @@ export function ChapterReader({
     }
   }, [chapter]);
   const [path, setPath] = useState<PgnNode[]>([]);
+  const [evalResult, setEvalResult] = useState<EvalResult | null | "loading" | "none">(null);
 
   if (!tree) {
     return (
@@ -51,6 +54,16 @@ export function ChapterReader({
   const fen = current ? current.fenAfter : tree.startFen;
   const sans = path.map((n) => n.san).join(" ");
   const nextNodes = current ? current.children : tree.children;
+
+  useEffect(() => {
+    setEvalResult(null);
+  }, [fen]);
+
+  async function runEval() {
+    setEvalResult("loading");
+    const r = await fetchEval(fen);
+    setEvalResult(r ?? "none");
+  }
 
   useEffect(() => {
     if (!tree) return;
@@ -98,6 +111,7 @@ export function ChapterReader({
           {current?.comment && (
             <p className="read-comment">{current.comment}</p>
           )}
+          <EnginePanel evalResult={evalResult} onAnalyze={runEval} />
           <div className="read-controls">
             <button
               className="nav-btn"

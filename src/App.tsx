@@ -39,6 +39,9 @@ export default function App() {
     addToChapter,
     setCategories,
     setPaused,
+    setLineWeights,
+    pauseLowWeight,
+    resumeAllInChapter,
   } = useStudies();
   const {
     settings,
@@ -116,6 +119,9 @@ export default function App() {
               onStartLine={startLine}
               onStartPosition={startPosition}
               onImport={() => setTab("repertoire")}
+              setLineWeights={setLineWeights}
+              pauseLowWeight={pauseLowWeight}
+              resumeAllInChapter={resumeAllInChapter}
             />
           )}
           {tab === "read" &&

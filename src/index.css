@@ -967,6 +967,49 @@ button.link.danger {
   cursor: pointer;
 }
 
+.engine-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.engine-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.engine-result {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
+.engine-score {
+  font-weight: 700;
+  font-family: ui-monospace, "SF Mono", monospace;
+}
+
+.engine-pv {
+  font-family: ui-monospace, "SF Mono", monospace;
+  font-size: 0.9rem;
+  color: var(--muted);
+}
+
+.weight-tag {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--surface-2);
+  color: var(--muted);
+  border-radius: 99px;
+  padding: 1px 8px;
+}
+
 .cat-row {
   display: flex;
   flex-wrap: wrap;

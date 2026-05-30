@@ -11,6 +11,7 @@ import {
   type LineItem,
   type PositionItem,
 } from "../useStudies";
+import { computeStudyWeights } from "../weights";
 import type { Line, Study } from "../types";
 
 interface Props {
@@ -18,6 +19,9 @@ interface Props {
   onStartLine: (items: LineItem[], freeze?: boolean) => void;
   onStartPosition: (positions: PositionItem[]) => void;
   onImport: () => void;
+  setLineWeights: (studyId: string, weights: Map<string, number>) => void;
+  pauseLowWeight: (studyId: string, chapterIdx: number, threshold: number) => void;
+  resumeAllInChapter: (studyId: string, chapterIdx: number) => void;
 }
 
 function dueItemsOf(items: LineItem[]): LineItem[] {
@@ -30,10 +34,26 @@ export function Practice({
   onStartLine,
   onStartPosition,
   onImport,
+  setLineWeights,
+  pauseLowWeight,
+  resumeAllInChapter,
 }: Props) {
   const t = useT();
   const [selId, setSelId] = useState<string | null>(null);
   const [chapterIdx, setChapterIdx] = useState(0);
+  const [weighing, setWeighing] = useState<string | null>(null);
+  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
+
+  async function computeWeights(study: Study) {
+    setWeighing(study.id);
+    setProgress({ done: 0, total: 0 });
+    const weights = await computeStudyWeights(study, (done, total) =>
+      setProgress({ done, total }),
+    );
+    setLineWeights(study.id, weights);
+    setWeighing(null);
+    setProgress(null);
+  }
 
   if (studies.length === 0) {
     return (
@@ -126,23 +146,50 @@ export function Practice({
 
         {lineButtons(chItems)}
 
+        <div className="row">
+          <button
+            className="link small"
+            onClick={() => pauseLowWeight(selStudy.id, chapterIdx, 5)}
+          >
+            Exclude lines &lt; 5%
+          </button>
+          <button
+            className="link small"
+            onClick={() => resumeAllInChapter(selStudy.id, chapterIdx)}
+          >
+            Resume paused
+          </button>
+        </div>
+
         <ul className="list">
           {chLines.map((l) => {
             const due = isDue(l.sched, now);
             const sans = l.moves.map((m) => m.san).join(" ");
             return (
-              <li key={l.id} className="line-row">
+              <li
+                key={l.id}
+                className={`line-row ${l.paused ? "paused" : ""}`}
+              >
                 <span className="line-open" title={sans}>
                   {sans}
                 </span>
                 <div className="line-status">
+                  {l.weight !== undefined && (
+                    <span className="weight-tag" title="Master frequency">
+                      {l.weight.toFixed(0)}%
+                    </span>
+                  )}
                   <LevelBadge level={l.sched.level} />
-                  <button
-                    className={due ? "primary small" : "again small"}
-                    onClick={() => onStartLine([{ studyId: selStudy.id, line: l }], !due)}
-                  >
-                    {due ? t("read.practice") : t("read.practiceAgain")}
-                  </button>
+                  {!l.paused && (
+                    <button
+                      className={due ? "primary small" : "again small"}
+                      onClick={() =>
+                        onStartLine([{ studyId: selStudy.id, line: l }], !due)
+                      }
+                    >
+                      {due ? t("read.practice") : t("read.practiceAgain")}
+                    </button>
+                  )}
                 </div>
               </li>
             );
@@ -193,15 +240,26 @@ export function Practice({
                 {t("practice.positions")}
               </button>
             </div>
-            <button
-              className="link"
-              onClick={() => {
-                setSelId(s.id);
-                setChapterIdx(0);
-              }}
-            >
-              {t("practice.chooseLines")} →
-            </button>
+            <div className="row">
+              <button
+                className="link"
+                onClick={() => {
+                  setSelId(s.id);
+                  setChapterIdx(0);
+                }}
+              >
+                {t("practice.chooseLines")} →
+              </button>
+              <button
+                className="link small"
+                disabled={weighing === s.id}
+                onClick={() => computeWeights(s)}
+              >
+                {weighing === s.id && progress
+                  ? `Weighing… ${progress.done}/${progress.total}`
+                  : "Compute weights"}
+              </button>
+            </div>
           </section>
         );
       })}

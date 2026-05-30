@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Board } from "../components/Board";
 import { lichessAnalysisUrl } from "../lichess";
+import { fetchEval, type EvalResult } from "../engine";
 import { isDue } from "../srs";
 import { formatCountdown, summarizeTimes } from "../stats";
 import { useT } from "../i18n";
 import { LevelBadge } from "../components/LevelBadge";
+import { EnginePanel } from "../components/EnginePanel";
 import { ChapterReader } from "./ChapterReader";
 import { chapterLineItems, type LineItem } from "../useStudies";
 import type { Line, Study } from "../types";
@@ -163,6 +165,7 @@ function LineBrowser({
 }) {
   const t = useT();
   const [ply, setPly] = useState(0);
+  const [evalResult, setEvalResult] = useState<EvalResult | null | "loading" | "none">(null);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -176,6 +179,16 @@ function LineBrowser({
   }, [line.moves.length]);
 
   const fen = ply === 0 ? line.moves[0].fenBefore : line.moves[ply - 1].fenAfter;
+
+  useEffect(() => {
+    setEvalResult(null);
+  }, [fen]);
+
+  async function runEval() {
+    setEvalResult("loading");
+    const r = await fetchEval(fen);
+    setEvalResult(r ?? "none");
+  }
   const playedSans = line.moves.slice(0, ply).map((m) => m.san).join(" ");
   const comment = ply > 0 ? line.moves[ply - 1].comment : undefined;
   const due = isDue(line.sched);
@@ -230,6 +243,8 @@ function LineBrowser({
       />
 
       {comment && <p className="read-comment">{comment}</p>}
+
+      <EnginePanel evalResult={evalResult} onAnalyze={runEval} />
 
       {(lineStats || moveStats) && (
         <div className="time-stats">

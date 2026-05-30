@@ -166,6 +166,63 @@ export function useStudies() {
     [studies, persist],
   );
 
+  const setLineWeights = useCallback(
+    (studyId: string, weights: Map<string, number>) => {
+      persist(
+        studies.map((s) =>
+          s.id === studyId
+            ? {
+                ...s,
+                lines: s.lines.map((l) =>
+                  weights.has(l.id) ? { ...l, weight: weights.get(l.id) } : l,
+                ),
+              }
+            : s,
+        ),
+      );
+    },
+    [studies, persist],
+  );
+
+  const pauseLowWeight = useCallback(
+    (studyId: string, chapterIdx: number, thresholdPct: number) => {
+      persist(
+        studies.map((s) =>
+          s.id === studyId
+            ? {
+                ...s,
+                lines: s.lines.map((l) =>
+                  l.chapterIdx === chapterIdx &&
+                  (l.weight ?? 0) < thresholdPct
+                    ? { ...l, paused: true }
+                    : l,
+                ),
+              }
+            : s,
+        ),
+      );
+    },
+    [studies, persist],
+  );
+
+  const resumeAllInChapter = useCallback(
+    (studyId: string, chapterIdx: number) => {
+      persist(
+        studies.map((s) =>
+          s.id === studyId
+            ? {
+                ...s,
+                lines: s.lines.map((l) =>
+                  l.chapterIdx === chapterIdx ? { ...l, paused: false } : l,
+                ),
+              }
+            : s,
+        ),
+      );
+    },
+    [studies, persist],
+  );
+
   return {
     studies,
     loaded,
@@ -178,6 +235,9 @@ export function useStudies() {
     addToChapter,
     setCategories,
     setPaused,
+    setLineWeights,
+    pauseLowWeight,
+    resumeAllInChapter,
     persist,
   };
 }
