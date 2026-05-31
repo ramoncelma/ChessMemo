@@ -135,6 +135,8 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
     setImportSince,
     setSpeed,
     setOpponentDelayMs,
+    setEngineLines,
+    setEngineArrows,
   } = useSettings();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [readingId, setReadingId] = useState<string | null>(null);
@@ -285,6 +287,8 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
               setImportSince={setImportSince}
               setSpeed={setSpeed}
               setOpponentDelayMs={setOpponentDelayMs}
+              setEngineLines={setEngineLines}
+              setEngineArrows={setEngineArrows}
             />
           )}
           {tab === "drill" && drill?.kind === "line" && (

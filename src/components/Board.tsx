@@ -4,6 +4,8 @@ import { Chess, type Square } from "chess.js";
 import type { Orientation } from "../types";
 import { themeById, type PieceSet } from "../settings";
 
+export type BoardArrow = [string, string, string?];
+
 interface Props {
   fen: string;
   orientation: Orientation;
@@ -12,6 +14,7 @@ interface Props {
   boardThemeId: string;
   pieceSet: PieceSet;
   hintSquare?: string;
+  arrows?: BoardArrow[];
 }
 
 const PIECE_CODES = [
@@ -47,6 +50,7 @@ export function Board({
   boardThemeId,
   pieceSet,
   hintSquare,
+  arrows,
 }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [width, setWidth] = useState(320);
@@ -147,6 +151,11 @@ export function Board({
         onSquareClick={handleSquareClick}
         customPieces={customPieces}
         customSquareStyles={squareStyles}
+        customArrows={
+          arrows && arrows.length > 0
+            ? (arrows as unknown as [Square, Square, string?][])
+            : undefined
+        }
         customBoardStyle={{
           borderRadius: "14px",
           boxShadow: "0 12px 30px rgba(0,0,0,0.35)",

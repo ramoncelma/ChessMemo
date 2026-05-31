@@ -35,6 +35,8 @@ interface Props {
   setImportSince: (v: string) => void;
   setSpeed: (speed: Speed, on: boolean) => void;
   setOpponentDelayMs: (ms: number) => void;
+  setEngineLines: (n: 1 | 2 | 3) => void;
+  setEngineArrows: (v: boolean) => void;
 }
 
 type Section = "appearance" | "practice" | "about";
@@ -55,6 +57,8 @@ export function Settings({
   setImportSince,
   setSpeed,
   setOpponentDelayMs,
+  setEngineLines,
+  setEngineArrows,
 }: Props) {
   const t = useT();
   const [section, setSection] = useState<Section>("appearance");
@@ -481,6 +485,39 @@ export function Settings({
                 value={settings.opponentDelayMs}
                 onChange={(e) => setOpponentDelayMs(Number(e.target.value))}
               />
+            </div>
+            <label className="toggle-row">
+              <span>
+                <span className="toggle-title">Engine arrows on board</span>
+                <span className="muted small">
+                  Draw the engine's top moves as arrows; brightness scales with
+                  how close each move is to the best one.
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={settings.engineArrows}
+                onChange={(e) => setEngineArrows(e.target.checked)}
+              />
+            </label>
+            <div className="delay-row">
+              <div>
+                <div className="toggle-title">Engine lines to show</div>
+                <div className="muted small">
+                  How many top variations to request from Stockfish.
+                </div>
+              </div>
+              <div className="seg compact">
+                {[1, 2, 3].map((n) => (
+                  <button
+                    key={n}
+                    className={settings.engineLines === n ? "active" : ""}
+                    onClick={() => setEngineLines(n as 1 | 2 | 3)}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
             </div>
           </section>
 

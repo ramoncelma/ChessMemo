@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
+import { Chess } from "chess.js";
 import { Board } from "../components/Board";
 import { MoveTree } from "../components/MoveTree";
 import { EnginePanel } from "../components/EnginePanel";
 import { lichessAnalysisUrl } from "../lichess";
-import { fetchEval, type EvalResult } from "../engine";
+import { arrowsFromEval, fetchEval, type EvalResult } from "../engine";
 import { parsePgn, type PgnNode } from "../pgnTree";
 import { useT } from "../i18n";
 import { chapterLineItems, type LineItem } from "../useStudies";
@@ -61,9 +62,21 @@ export function ChapterReader({
 
   async function runEval() {
     setEvalResult("loading");
-    const r = await fetchEval(fen);
+    const r = await fetchEval(fen, settings.engineLines);
     setEvalResult(r ?? "none");
   }
+
+  const turn = useMemo<"w" | "b">(() => {
+    try {
+      return new Chess(fen).turn();
+    } catch {
+      return "w";
+    }
+  }, [fen]);
+  const arrows =
+    settings.engineArrows && evalResult && typeof evalResult !== "string"
+      ? arrowsFromEval(evalResult, turn)
+      : [];
 
   useEffect(() => {
     if (!tree) return;
@@ -107,6 +120,7 @@ export function ChapterReader({
             onDrop={() => false}
             boardThemeId={settings.boardThemeId}
             pieceSet={settings.pieceSet}
+            arrows={arrows}
           />
           {current?.comment && (
             <p className="read-comment">{current.comment}</p>

@@ -990,15 +990,59 @@ button.link.danger {
   flex-wrap: wrap;
 }
 
+.engine-lines {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.engine-line {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  flex-wrap: wrap;
+}
+
 .engine-score {
   font-weight: 700;
   font-family: ui-monospace, "SF Mono", monospace;
+  min-width: 3.5em;
+}
+
+.engine-score.line-0 {
+  color: #2e823c;
+}
+.engine-score.line-1 {
+  color: #c8911e;
+}
+.engine-score.line-2 {
+  color: #aa4646;
+}
+
+.engine-depth {
+  font-size: 0.72rem;
+  font-weight: 700;
+  background: var(--surface-2);
+  color: var(--muted);
+  border-radius: 99px;
+  padding: 1px 8px;
+  margin-left: auto;
+  margin-right: 8px;
 }
 
 .engine-pv {
   font-family: ui-monospace, "SF Mono", monospace;
   font-size: 0.9rem;
   color: var(--muted);
+}
+
+.seg.compact {
+  display: inline-flex;
+  width: auto;
+}
+.seg.compact button {
+  padding: 6px 14px;
+  min-width: 36px;
 }
 
 .weight-tag {

@@ -1,7 +1,8 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { Chess } from "chess.js";
 import { Board } from "../components/Board";
 import { lichessAnalysisUrl } from "../lichess";
-import { fetchEval, type EvalResult } from "../engine";
+import { arrowsFromEval, fetchEval, type EvalResult } from "../engine";
 import { isDue } from "../srs";
 import { formatCountdown, summarizeTimes } from "../stats";
 import { useT } from "../i18n";
@@ -186,9 +187,20 @@ function LineBrowser({
 
   async function runEval() {
     setEvalResult("loading");
-    const r = await fetchEval(fen);
+    const r = await fetchEval(fen, settings.engineLines);
     setEvalResult(r ?? "none");
   }
+  const turn = useMemo<"w" | "b">(() => {
+    try {
+      return new Chess(fen).turn();
+    } catch {
+      return "w";
+    }
+  }, [fen]);
+  const arrows =
+    settings.engineArrows && evalResult && typeof evalResult !== "string"
+      ? arrowsFromEval(evalResult, turn)
+      : [];
   const playedSans = line.moves.slice(0, ply).map((m) => m.san).join(" ");
   const comment = ply > 0 ? line.moves[ply - 1].comment : undefined;
   const due = isDue(line.sched);
@@ -240,6 +252,7 @@ function LineBrowser({
         onDrop={() => false}
         boardThemeId={settings.boardThemeId}
         pieceSet={settings.pieceSet}
+        arrows={arrows}
       />
 
       {comment && <p className="read-comment">{comment}</p>}

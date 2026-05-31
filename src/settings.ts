@@ -59,6 +59,8 @@ export interface Settings {
   importSince: string; // YYYY-MM-DD
   speeds: Record<Speed, boolean>;
   opponentDelayMs: number;
+  engineLines: 1 | 2 | 3;
+  engineArrows: boolean;
 }
 
 const DEFAULTS: Settings = {
@@ -78,6 +80,8 @@ const DEFAULTS: Settings = {
     correspondence: false,
   },
   opponentDelayMs: 350,
+  engineLines: 1,
+  engineArrows: true,
 };
 const KEY = "chessmemo.settings";
 
@@ -125,6 +129,10 @@ export function useSettings() {
       setSettings((s) => ({ ...s, speeds: { ...s.speeds, [speed]: on } })),
     setOpponentDelayMs: (opponentDelayMs: number) =>
       setSettings((s) => ({ ...s, opponentDelayMs })),
+    setEngineLines: (engineLines: 1 | 2 | 3) =>
+      setSettings((s) => ({ ...s, engineLines })),
+    setEngineArrows: (engineArrows: boolean) =>
+      setSettings((s) => ({ ...s, engineArrows })),
   };
 }
 
