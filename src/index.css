@@ -1412,3 +1412,56 @@ button.link.danger {
     top: 0;
   }
 }
+
+.sync-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  margin: 8px 12px 0;
+  font-size: 14px;
+}
+.sync-banner.conflict {
+  background: #fff4d6;
+  color: #5a4400;
+  border: 1px solid #f0c66a;
+}
+.sync-banner.error {
+  background: #ffe3e3;
+  color: #6b1e1e;
+  border: 1px solid #f1a0a0;
+}
+.sync-banner .row {
+  margin-left: auto;
+}
+
+.profile-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 8px;
+}
+.profile-form .field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.profile-form .field-label {
+  font-size: 12px;
+  color: var(--muted);
+}
+.profile-meta {
+  list-style: none;
+  padding: 0;
+  margin: 6px 0;
+}
+.profile-msg {
+  margin-top: 8px;
+}
+.profile-msg.ok {
+  color: #1f7a3a;
+}
+.profile-msg.err {
+  color: #a32525;
+}

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Dashboard } from "./pages/Dashboard";
 import { Practice } from "./pages/Practice";
 import { ReadList } from "./pages/ReadList";
@@ -11,6 +11,14 @@ import { Settings } from "./pages/Settings";
 import { useStudies, type LineItem, type PositionItem } from "./useStudies";
 import { useSettings } from "./settings";
 import { I18nContext, makeT } from "./i18n";
+import {
+  flushPendingPush,
+  getProfile,
+  pullFromCloud,
+  pushToCloud,
+  syncOnStart,
+  type SyncResult,
+} from "./sync";
 
 type Tab =
   | "dashboard"
@@ -27,6 +35,78 @@ type DrillState =
   | null;
 
 export default function App() {
+  const [syncPhase, setSyncPhase] = useState<"pending" | "ready">(
+    getProfile() ? "pending" : "ready",
+  );
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+
+  useEffect(() => {
+    if (syncPhase !== "pending") return;
+    syncOnStart().then((r) => {
+      setSyncResult(r);
+      setSyncPhase("ready");
+    });
+  }, [syncPhase]);
+
+  useEffect(() => {
+    const onUnload = () => {
+      void flushPendingPush();
+    };
+    window.addEventListener("beforeunload", onUnload);
+    return () => window.removeEventListener("beforeunload", onUnload);
+  }, []);
+
+  if (syncPhase === "pending") {
+    const profile = getProfile();
+    return (
+      <div className="page center muted">
+        Syncing {profile?.name ?? ""}…
+      </div>
+    );
+  }
+
+  return (
+    <AppInner
+      initialSyncResult={syncResult}
+      clearSyncResult={() => setSyncResult(null)}
+      reload={() => setSyncPhase("pending")}
+    />
+  );
+}
+
+interface InnerProps {
+  initialSyncResult: SyncResult | null;
+  clearSyncResult: () => void;
+  reload: () => void;
+}
+
+function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
+  const [conflict, setConflict] = useState<SyncResult | null>(
+    initialSyncResult?.status === "conflict" ? initialSyncResult : null,
+  );
+  const [syncError, setSyncError] = useState<string | null>(
+    initialSyncResult?.status === "error"
+      ? initialSyncResult.message ?? "Sync error"
+      : null,
+  );
+
+  async function resolveConflict(side: "cloud" | "local") {
+    try {
+      if (side === "cloud") {
+        await pullFromCloud();
+        setConflict(null);
+        clearSyncResult();
+        reload();
+      } else {
+        await pushToCloud();
+        setConflict(null);
+        clearSyncResult();
+      }
+    } catch (err) {
+      setSyncError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
   const {
     studies,
     loaded,
@@ -98,6 +178,33 @@ export default function App() {
   return (
     <I18nContext.Provider value={t}>
       <div className="app">
+        {conflict && (
+          <div className="sync-banner conflict">
+            <span>
+              Sync conflict: this device and the cloud both have unsynced
+              changes. Keep which copy?
+            </span>
+            <div className="row">
+              <button className="small" onClick={() => resolveConflict("cloud")}>
+                Use cloud
+              </button>
+              <button
+                className="small primary"
+                onClick={() => resolveConflict("local")}
+              >
+                Keep this device
+              </button>
+            </div>
+          </div>
+        )}
+        {syncError && (
+          <div className="sync-banner error">
+            <span>Sync error: {syncError}</span>
+            <button className="small" onClick={() => setSyncError(null)}>
+              Dismiss
+            </button>
+          </div>
+        )}
         <main>
           {tab === "dashboard" && (
             <Dashboard

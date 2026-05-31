@@ -11,6 +11,15 @@ import {
 } from "../settings";
 import { LANGS, type Lang, useT, levelName, levelInterval } from "../i18n";
 import { download, exportAll, importAll } from "../backup";
+import {
+  clearProfile,
+  createGist,
+  findGistByName,
+  getProfile,
+  pullFromCloud,
+  pushToCloud,
+  setProfile,
+} from "../sync";
 
 const PREVIEW_FEN = "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1";
 
@@ -49,6 +58,146 @@ export function Settings({
 }: Props) {
   const t = useT();
   const [section, setSection] = useState<Section>("appearance");
+  const [profile, setProfileState] = useState(() => getProfile());
+  const [profileForm, setProfileForm] = useState({
+    name: "",
+    token: "",
+    gistId: "",
+  });
+  const [profileBusy, setProfileBusy] = useState<string | null>(null);
+  const [profileMsg, setProfileMsg] = useState<string | null>(null);
+  const [profileErr, setProfileErr] = useState<string | null>(null);
+
+  function refreshProfile() {
+    setProfileState(getProfile());
+  }
+
+  async function handleCreate() {
+    setProfileErr(null);
+    setProfileMsg(null);
+    if (!profileForm.name.trim() || !profileForm.token.trim()) {
+      setProfileErr("Profile name and GitHub token are both required.");
+      return;
+    }
+    setProfileBusy("create");
+    try {
+      const { gistId, updatedAt } = await createGist(
+        profileForm.name.trim(),
+        profileForm.token.trim(),
+      );
+      setProfile({
+        name: profileForm.name.trim(),
+        token: profileForm.token.trim(),
+        gistId,
+        lastSyncedAt: updatedAt,
+      });
+      refreshProfile();
+      setProfileForm({ name: "", token: "", gistId: "" });
+      setProfileMsg("Cloud profile created. Your data is backed up.");
+    } catch (err) {
+      setProfileErr(err instanceof Error ? err.message : String(err));
+    } finally {
+      setProfileBusy(null);
+    }
+  }
+
+  async function handleLink() {
+    setProfileErr(null);
+    setProfileMsg(null);
+    if (!profileForm.name.trim() || !profileForm.token.trim()) {
+      setProfileErr("Profile name and GitHub token are both required.");
+      return;
+    }
+    setProfileBusy("link");
+    try {
+      let gistId = profileForm.gistId.trim();
+      if (!gistId) {
+        const found = await findGistByName(
+          profileForm.token.trim(),
+          profileForm.name.trim(),
+        );
+        if (!found) {
+          throw new Error(
+            `No gist named "${profileForm.name.trim()}" found in your GitHub account.`,
+          );
+        }
+        gistId = found;
+      }
+      setProfile({
+        name: profileForm.name.trim(),
+        token: profileForm.token.trim(),
+        gistId,
+        lastSyncedAt: 0,
+      });
+      await pullFromCloud();
+      refreshProfile();
+      setProfileForm({ name: "", token: "", gistId: "" });
+      setProfileMsg("Linked. Reloading…");
+      setTimeout(() => window.location.reload(), 800);
+    } catch (err) {
+      setProfileErr(err instanceof Error ? err.message : String(err));
+      clearProfile();
+      refreshProfile();
+    } finally {
+      setProfileBusy(null);
+    }
+  }
+
+  async function handlePush() {
+    setProfileErr(null);
+    setProfileMsg(null);
+    setProfileBusy("push");
+    try {
+      await pushToCloud();
+      refreshProfile();
+      setProfileMsg("Pushed local data to the cloud.");
+    } catch (err) {
+      setProfileErr(err instanceof Error ? err.message : String(err));
+    } finally {
+      setProfileBusy(null);
+    }
+  }
+
+  async function handlePull() {
+    setProfileErr(null);
+    setProfileMsg(null);
+    if (
+      !confirm(
+        "Replace this device's data with the cloud copy? Any local changes since the last sync will be lost.",
+      )
+    )
+      return;
+    setProfileBusy("pull");
+    try {
+      await pullFromCloud();
+      setProfileMsg("Pulled cloud data. Reloading…");
+      setTimeout(() => window.location.reload(), 600);
+    } catch (err) {
+      setProfileErr(err instanceof Error ? err.message : String(err));
+      setProfileBusy(null);
+    }
+  }
+
+  function handleSignOut() {
+    if (
+      !confirm(
+        "Sign out of this profile on this device? Your local data stays here; the cloud copy is not deleted.",
+      )
+    )
+      return;
+    clearProfile();
+    refreshProfile();
+    setProfileMsg("Signed out on this device.");
+  }
+
+  function relTime(ms: number): string {
+    if (!ms) return "never";
+    const diff = Date.now() - ms;
+    if (diff < 60_000) return "just now";
+    if (diff < 3600_000) return `${Math.round(diff / 60_000)} min ago`;
+    if (diff < 86_400_000) return `${Math.round(diff / 3600_000)} h ago`;
+    return `${Math.round(diff / 86_400_000)} d ago`;
+  }
 
   async function exportData() {
     const b = await exportAll();
@@ -179,6 +328,130 @@ export function Settings({
 
       {section === "practice" && (
         <>
+          <section>
+            <h3 className="section-label">Cloud profile</h3>
+            {!profile ? (
+              <>
+                <p className="muted small">
+                  Sync your repertoires and progress across devices via a
+                  private GitHub gist. Create a{" "}
+                  <a
+                    href="https://github.com/settings/tokens/new?scopes=gist&description=ChessMemo"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    classic personal access token with the <code>gist</code>{" "}
+                    scope
+                  </a>{" "}
+                  and paste it below.
+                </p>
+                <div className="profile-form">
+                  <label className="field">
+                    <span className="field-label">Profile name</span>
+                    <input
+                      className="text-input"
+                      placeholder="Ramon"
+                      value={profileForm.name}
+                      onChange={(e) =>
+                        setProfileForm((f) => ({ ...f, name: e.target.value }))
+                      }
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field-label">GitHub token</span>
+                    <input
+                      className="text-input"
+                      type="password"
+                      placeholder="ghp_…"
+                      value={profileForm.token}
+                      onChange={(e) =>
+                        setProfileForm((f) => ({ ...f, token: e.target.value }))
+                      }
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field-label">
+                      Gist ID (optional, for linking an existing profile)
+                    </span>
+                    <input
+                      className="text-input"
+                      placeholder="leave blank to auto-find by name"
+                      value={profileForm.gistId}
+                      onChange={(e) =>
+                        setProfileForm((f) => ({
+                          ...f,
+                          gistId: e.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <div className="row">
+                    <button
+                      className="primary"
+                      disabled={profileBusy !== null}
+                      onClick={handleCreate}
+                    >
+                      {profileBusy === "create"
+                        ? "Creating…"
+                        : "Create cloud profile"}
+                    </button>
+                    <button
+                      disabled={profileBusy !== null}
+                      onClick={handleLink}
+                    >
+                      {profileBusy === "link"
+                        ? "Linking…"
+                        : "Link existing profile"}
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                <p>
+                  Signed in as <strong>{profile.name}</strong>. Changes sync
+                  automatically a few seconds after each edit.
+                </p>
+                <ul className="muted small profile-meta">
+                  <li>
+                    Gist:{" "}
+                    <a
+                      href={`https://gist.github.com/${profile.gistId}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {profile.gistId.slice(0, 8)}…
+                    </a>
+                  </li>
+                  <li>Last synced: {relTime(profile.lastSyncedAt)}</li>
+                </ul>
+                <div className="row">
+                  <button
+                    disabled={profileBusy !== null}
+                    onClick={handlePush}
+                  >
+                    {profileBusy === "push" ? "Pushing…" : "Push now"}
+                  </button>
+                  <button
+                    disabled={profileBusy !== null}
+                    onClick={handlePull}
+                  >
+                    {profileBusy === "pull" ? "Pulling…" : "Pull from cloud"}
+                  </button>
+                  <button className="link" onClick={handleSignOut}>
+                    Sign out
+                  </button>
+                </div>
+              </>
+            )}
+            {profileMsg && (
+              <p className="muted small profile-msg ok">{profileMsg}</p>
+            )}
+            {profileErr && (
+              <p className="muted small profile-msg err">{profileErr}</p>
+            )}
+          </section>
+
           <section>
             <h3 className="section-label">{t("settings.behaviour")}</h3>
             <label className="toggle-row">

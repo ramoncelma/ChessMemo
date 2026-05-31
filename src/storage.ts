@@ -2,6 +2,7 @@ import { get, set } from "idb-keyval";
 import { buildLines } from "./pgn";
 import { newSchedule } from "./srs";
 import { SPEEDS } from "./settings";
+import { markDirty } from "./sync";
 import type { Chapter, Line, Study } from "./types";
 
 const STUDIES_KEY = "chessmemo.studies";
@@ -48,6 +49,7 @@ export async function loadStudies(): Promise<Study[]> {
 
 export async function saveStudies(studies: Study[]): Promise<void> {
   await set(STUDIES_KEY, studies);
+  markDirty();
 }
 
 export interface ReviewEntry {
@@ -63,4 +65,5 @@ export async function appendReview(correct: boolean): Promise<void> {
   const log = await loadReviewLog();
   log.push({ ts: Date.now(), correct });
   await set(LOG_KEY, log);
+  markDirty();
 }

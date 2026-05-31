@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import { markDirty } from "./sync";
 import type { Lang } from "./i18n";
 
 export interface BoardTheme {
@@ -92,10 +93,16 @@ function read(): Settings {
 
 export function useSettings() {
   const [settings, setSettings] = useState<Settings>(read);
+  const firstRun = useRef(true);
 
   useEffect(() => {
     localStorage.setItem(KEY, JSON.stringify(settings));
     document.documentElement.dataset.theme = settings.theme;
+    if (firstRun.current) {
+      firstRun.current = false;
+    } else {
+      markDirty();
+    }
   }, [settings]);
 
   return {
