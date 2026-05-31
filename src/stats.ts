@@ -1,4 +1,5 @@
 import { isDue, LEVEL_NAMES, RETAINED_LEVEL } from "./srs";
+import { nowSrs } from "./clock";
 import type { ReviewEntry } from "./storage";
 import type { Line, Study } from "./types";
 
@@ -44,7 +45,7 @@ export function summarizeTimes(times: number[]): TimeSummary | null {
   return { n: times.length, avg: Math.round(sum / times.length), min, max };
 }
 
-export function dueCount(studies: Study[], now = Date.now()): number {
+export function dueCount(studies: Study[], now: number = nowSrs()): number {
   let n = 0;
   for (const s of studies)
     for (const l of s.lines)
@@ -52,7 +53,7 @@ export function dueCount(studies: Study[], now = Date.now()): number {
   return n;
 }
 
-export function nextReviewAt(studies: Study[], now = Date.now()): Date | null {
+export function nextReviewAt(studies: Study[], now: number = nowSrs()): Date | null {
   let soonest: number | null = null;
   for (const s of studies) {
     for (const l of s.lines) {

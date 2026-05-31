@@ -1249,6 +1249,53 @@ button.link.danger {
   font-weight: 600;
 }
 
+.wrong-actions {
+  gap: 10px;
+  justify-content: center;
+}
+
+.grade-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  width: 100%;
+  margin-top: 10px;
+}
+
+.grade {
+  padding: 12px 6px;
+  border-radius: 12px;
+  font-weight: 700;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.grade.again {
+  border-color: #d04545;
+  color: #d04545;
+}
+.grade.hard {
+  border-color: #d08a30;
+  color: #d08a30;
+}
+.grade.good.primary {
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  color: #fff;
+  border-color: transparent;
+}
+.grade.good {
+  border-color: #2e823c;
+  color: #2e823c;
+}
+.grade.easy {
+  border-color: #4878c0;
+  color: #4878c0;
+}
+.grade:hover {
+  filter: brightness(1.05);
+}
+
 .levels {
   display: flex;
   flex-direction: column;

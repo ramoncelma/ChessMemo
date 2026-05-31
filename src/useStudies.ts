@@ -3,6 +3,7 @@ import { loadStudies, saveStudies } from "./storage";
 import { buildLines } from "./pgn";
 import { mergeTrees, parsePgn, treeToPgn } from "./pgnTree";
 import { isDue } from "./srs";
+import { nowSrs } from "./clock";
 import type { Chapter, Line, Orientation, Study } from "./types";
 import type { Speed } from "./settings";
 
@@ -262,7 +263,7 @@ export function chapterLineItems(study: Study, idx: number): LineItem[] {
 }
 
 export function dueLines(studies: Study[]): LineItem[] {
-  const now = Date.now();
+  const now = nowSrs();
   const items: LineItem[] = [];
   for (const s of studies) {
     for (const line of s.lines) {

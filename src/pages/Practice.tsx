@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { dueCount, retention } from "../stats";
 import { isDue } from "../srs";
+import { nowSrs } from "../clock";
 import { useT, levelName } from "../i18n";
 import { LevelBadge } from "../components/LevelBadge";
 import {
@@ -25,7 +26,7 @@ interface Props {
 }
 
 function dueItemsOf(items: LineItem[]): LineItem[] {
-  const now = Date.now();
+  const now = nowSrs();
   return items.filter((it) => isDue(it.line.sched, now));
 }
 
@@ -120,7 +121,7 @@ export function Practice({
   if (selStudy) {
     const chLines = selStudy.lines.filter((l) => l.chapterIdx === chapterIdx);
     const chItems = chapterLineItems(selStudy, chapterIdx);
-    const now = Date.now();
+    const now = nowSrs();
     return (
       <div className="page">
         <div className="row">

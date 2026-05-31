@@ -24,6 +24,7 @@ export function RealGames({ studies, settings, onSettings }: Props) {
   const [games, setGames] = useState<RealGame[] | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [filterStudyId, setFilterStudyId] = useState<string>("");
 
   useEffect(() => {
     loadGames().then(setGames);
@@ -73,6 +74,9 @@ export function RealGames({ studies, settings, onSettings }: Props) {
   const relevant = reports.filter(
     (r) => r.followed.length > 0 || r.deviations.length > 0,
   );
+  const filtered = filterStudyId
+    ? relevant.filter((r) => r.study.id === filterStudyId)
+    : relevant;
 
   return (
     <div className="page">
@@ -88,11 +92,26 @@ export function RealGames({ studies, settings, onSettings }: Props) {
       )}
       {error && <p className="result wrong">{error}</p>}
 
-      {games && relevant.length === 0 && (
+      {studies.length > 1 && (
+        <select
+          className="select"
+          value={filterStudyId}
+          onChange={(e) => setFilterStudyId(e.target.value)}
+        >
+          <option value="">All repertoires</option>
+          {studies.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.name}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {games && filtered.length === 0 && (
         <p className="muted">{t("rg.noGames")}</p>
       )}
 
-      {relevant.map((r) => (
+      {filtered.map((r) => (
         <section key={r.study.id} className="study-card">
           <div className="list-title">{r.study.name}</div>
 

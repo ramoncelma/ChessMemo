@@ -37,6 +37,8 @@ interface Props {
   setOpponentDelayMs: (ms: number) => void;
   setEngineLines: (n: 1 | 2 | 3) => void;
   setEngineArrows: (v: boolean) => void;
+  setReplayFromStartOnMiss: (v: boolean) => void;
+  setVacation: (on: boolean) => void;
 }
 
 type Section = "appearance" | "practice" | "about";
@@ -59,6 +61,8 @@ export function Settings({
   setOpponentDelayMs,
   setEngineLines,
   setEngineArrows,
+  setReplayFromStartOnMiss,
+  setVacation,
 }: Props) {
   const t = useT();
   const [section, setSection] = useState<Section>("appearance");
@@ -457,6 +461,29 @@ export function Settings({
           </section>
 
           <section>
+            <h3 className="section-label">Vacation mode</h3>
+            <label className="toggle-row">
+              <span>
+                <span className="toggle-title">
+                  {settings.vacationStartedAt
+                    ? `On vacation since ${new Date(settings.vacationStartedAt).toLocaleDateString()}`
+                    : "Vacation mode"}
+                </span>
+                <span className="muted small">
+                  Freezes the spaced-repetition clock. Lines won't come due
+                  while it's on; turning it off resumes scheduling without a
+                  backlog of missed days.
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={settings.vacationStartedAt !== null}
+                onChange={(e) => setVacation(e.target.checked)}
+              />
+            </label>
+          </section>
+
+          <section>
             <h3 className="section-label">{t("settings.behaviour")}</h3>
             <label className="toggle-row">
               <span>
@@ -467,6 +494,21 @@ export function Settings({
                 type="checkbox"
                 checked={settings.positionMissResetsLine}
                 onChange={(e) => setPositionMissResetsLine(e.target.checked)}
+              />
+            </label>
+            <label className="toggle-row">
+              <span>
+                <span className="toggle-title">Replay full line on miss</span>
+                <span className="muted small">
+                  After a wrong move, restart the line from move 1 instead of
+                  skipping past the missed move. Helps rebuild the full
+                  sequence in memory.
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={settings.replayFromStartOnMiss}
+                onChange={(e) => setReplayFromStartOnMiss(e.target.checked)}
               />
             </label>
             <div className="delay-row">

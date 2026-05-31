@@ -137,6 +137,8 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
     setOpponentDelayMs,
     setEngineLines,
     setEngineArrows,
+    setReplayFromStartOnMiss,
+    setVacation,
   } = useSettings();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [readingId, setReadingId] = useState<string | null>(null);
@@ -289,6 +291,8 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
               setOpponentDelayMs={setOpponentDelayMs}
               setEngineLines={setEngineLines}
               setEngineArrows={setEngineArrows}
+              setReplayFromStartOnMiss={setReplayFromStartOnMiss}
+              setVacation={setVacation}
             />
           )}
           {tab === "drill" && drill?.kind === "line" && (

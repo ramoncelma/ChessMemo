@@ -4,6 +4,7 @@ import { Board } from "../components/Board";
 import { lichessAnalysisUrl } from "../lichess";
 import { arrowsFromEval, fetchEval, type EvalResult } from "../engine";
 import { isDue } from "../srs";
+import { nowSrs } from "../clock";
 import { formatCountdown, summarizeTimes } from "../stats";
 import { useT } from "../i18n";
 import { LevelBadge } from "../components/LevelBadge";
@@ -65,7 +66,7 @@ export function ReadView({
     );
   }
 
-  const now = Date.now();
+  const now = nowSrs();
 
   return (
     <div className="page">

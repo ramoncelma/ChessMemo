@@ -2,6 +2,8 @@
 // pass promotes the line one level (longer interval); a miss (wrong move, hint,
 // or a response slower than the timeout) sends it back to level 1.
 
+import { nowSrs } from "./clock";
+
 const HOUR = 3600_000;
 const DAY = 24 * HOUR;
 
@@ -44,7 +46,7 @@ export function newSchedule(now = Date.now()): Schedule {
   return { level: 0, due: now };
 }
 
-export function isDue(s: Schedule, now = Date.now()): boolean {
+export function isDue(s: Schedule, now: number = nowSrs()): boolean {
   return s.due <= now;
 }
 
@@ -55,4 +57,25 @@ export function promote(s: Schedule, now = Date.now()): Schedule {
 
 export function resetLevel(now = Date.now()): Schedule {
   return { level: 1, due: now + LEVEL_INTERVALS_MS[1], lastReview: now };
+}
+
+export type Grade = "again" | "hard" | "good" | "easy";
+
+// Anki-style grading. "Again" = real miss (level reset). "Hard" keeps the
+// current level but halves the interval. "Good" promotes one level (clean).
+// "Easy" promotes two levels.
+export function grade(s: Schedule, kind: Grade, now = Date.now()): Schedule {
+  switch (kind) {
+    case "again":
+      return resetLevel(now);
+    case "good":
+      return promote(s, now);
+    case "easy":
+      return promote(promote(s, now), now);
+    case "hard": {
+      const lvl = Math.max(1, s.level);
+      const half = Math.max(HOUR, Math.floor(LEVEL_INTERVALS_MS[lvl] / 2));
+      return { level: lvl, due: now + half, lastReview: now };
+    }
+  }
 }

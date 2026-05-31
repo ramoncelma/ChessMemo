@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { setVacationStart } from "./clock";
 import { markDirty } from "./sync";
 import type { Lang } from "./i18n";
 
@@ -61,6 +62,8 @@ export interface Settings {
   opponentDelayMs: number;
   engineLines: 1 | 2 | 3;
   engineArrows: boolean;
+  replayFromStartOnMiss: boolean;
+  vacationStartedAt: number | null;
 }
 
 const DEFAULTS: Settings = {
@@ -82,13 +85,19 @@ const DEFAULTS: Settings = {
   opponentDelayMs: 350,
   engineLines: 1,
   engineArrows: true,
+  replayFromStartOnMiss: false,
+  vacationStartedAt: null,
 };
 const KEY = "chessmemo.settings";
 
 function read(): Settings {
   try {
     const raw = localStorage.getItem(KEY);
-    if (raw) return { ...DEFAULTS, ...JSON.parse(raw) };
+    if (raw) {
+      const merged = { ...DEFAULTS, ...JSON.parse(raw) };
+      setVacationStart(merged.vacationStartedAt ?? null);
+      return merged;
+    }
   } catch {
     // ignore malformed settings
   }
@@ -102,6 +111,7 @@ export function useSettings() {
   useEffect(() => {
     localStorage.setItem(KEY, JSON.stringify(settings));
     document.documentElement.dataset.theme = settings.theme;
+    setVacationStart(settings.vacationStartedAt);
     if (firstRun.current) {
       firstRun.current = false;
     } else {
@@ -133,6 +143,13 @@ export function useSettings() {
       setSettings((s) => ({ ...s, engineLines })),
     setEngineArrows: (engineArrows: boolean) =>
       setSettings((s) => ({ ...s, engineArrows })),
+    setReplayFromStartOnMiss: (replayFromStartOnMiss: boolean) =>
+      setSettings((s) => ({ ...s, replayFromStartOnMiss })),
+    setVacation: (on: boolean) =>
+      setSettings((s) => ({
+        ...s,
+        vacationStartedAt: on ? Date.now() : null,
+      })),
   };
 }
 
