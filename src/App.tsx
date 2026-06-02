@@ -139,6 +139,7 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
     setEngineArrows,
     setReplayFromStartOnMiss,
     setVacation,
+    setChapterView,
   } = useSettings();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [readingId, setReadingId] = useState<string | null>(null);
@@ -227,6 +228,7 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
           {tab === "practice" && (
             <Practice
               studies={studies}
+              settings={settings}
               onStartLine={startLine}
               onStartPosition={startPosition}
               onImport={() => setTab("repertoire")}
@@ -293,6 +295,7 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
               setEngineArrows={setEngineArrows}
               setReplayFromStartOnMiss={setReplayFromStartOnMiss}
               setVacation={setVacation}
+              setChapterView={setChapterView}
             />
           )}
           {tab === "drill" && drill?.kind === "line" && (

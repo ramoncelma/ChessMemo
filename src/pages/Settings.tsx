@@ -39,9 +39,10 @@ interface Props {
   setEngineArrows: (v: boolean) => void;
   setReplayFromStartOnMiss: (v: boolean) => void;
   setVacation: (on: boolean) => void;
+  setChapterView: (v: "list" | "grid") => void;
 }
 
-type Section = "appearance" | "practice" | "about";
+type Section = "appearance" | "preferences" | "sync" | "about";
 
 function pieceThumb(set: PieceSet): string {
   return `https://cdn.jsdelivr.net/gh/lichess-org/lila@master/public/piece/${set}/wN.svg`;
@@ -63,6 +64,7 @@ export function Settings({
   setEngineArrows,
   setReplayFromStartOnMiss,
   setVacation,
+  setChapterView,
 }: Props) {
   const t = useT();
   const [section, setSection] = useState<Section>("appearance");
@@ -236,10 +238,16 @@ export function Settings({
           {t("settings.appearance")}
         </button>
         <button
-          className={section === "practice" ? "active" : ""}
-          onClick={() => setSection("practice")}
+          className={section === "preferences" ? "active" : ""}
+          onClick={() => setSection("preferences")}
         >
-          {t("settings.practiceTab")}
+          Preferences
+        </button>
+        <button
+          className={section === "sync" ? "active" : ""}
+          onClick={() => setSection("sync")}
+        >
+          Sync accounts
         </button>
         <button
           className={section === "about" ? "active" : ""}
@@ -334,7 +342,7 @@ export function Settings({
         </>
       )}
 
-      {section === "practice" && (
+      {section === "sync" && (
         <>
           <section>
             <h3 className="section-label">Cloud profile</h3>
@@ -461,6 +469,76 @@ export function Settings({
           </section>
 
           <section>
+            <h3 className="section-label">{t("settings.lichessUser")}</h3>
+            <input
+              className="text-input"
+              placeholder="magnuscarlsen"
+              value={settings.lichessUser}
+              onChange={(e) => setLichessUser(e.target.value)}
+            />
+          </section>
+
+          <section>
+            <h3 className="section-label">{t("settings.chesscomUser")}</h3>
+            <input
+              className="text-input"
+              placeholder="hikaru"
+              value={settings.chesscomUser}
+              onChange={(e) => setChesscomUser(e.target.value)}
+            />
+          </section>
+
+          <section>
+            <h3 className="section-label">{t("settings.importSince")}</h3>
+            <input
+              className="text-input"
+              type="date"
+              value={settings.importSince}
+              onChange={(e) => setImportSince(e.target.value)}
+            />
+          </section>
+
+          <section>
+            <h3 className="section-label">{t("settings.gameTypes")}</h3>
+            <div className="speed-list">
+              {SPEEDS.map((sp) => (
+                <label key={sp} className="speed-row">
+                  <input
+                    type="checkbox"
+                    checked={settings.speeds[sp]}
+                    onChange={(e) => setSpeed(sp, e.target.checked)}
+                  />
+                  {t(`speed.${sp}`)}
+                </label>
+              ))}
+            </div>
+          </section>
+
+          <section>
+            <h3 className="section-label">Export ChessMemo data</h3>
+            <p className="muted small">
+              Download a JSON backup or restore from one. Cloud profile syncs
+              this automatically, so this is mostly for off-device backups.
+            </p>
+            <div className="row">
+              <button onClick={exportData}>Export data</button>
+              <label className="primary import-label">
+                Import data
+                <input
+                  type="file"
+                  accept="application/json"
+                  onChange={importData}
+                  style={{ display: "none" }}
+                />
+              </label>
+            </div>
+          </section>
+        </>
+      )}
+
+      {section === "preferences" && (
+        <>
+          <section>
             <h3 className="section-label">Vacation mode</h3>
             <label className="toggle-row">
               <span>
@@ -481,6 +559,33 @@ export function Settings({
                 onChange={(e) => setVacation(e.target.checked)}
               />
             </label>
+          </section>
+
+          <section>
+            <h3 className="section-label">Chapter view</h3>
+            <div className="delay-row">
+              <div>
+                <div className="toggle-title">How chapters are shown</div>
+                <div className="muted small">
+                  In Practice and Read, list the chapters as a dropdown or as
+                  a grid of cards with progress.
+                </div>
+              </div>
+              <div className="seg compact">
+                <button
+                  className={settings.chapterView === "list" ? "active" : ""}
+                  onClick={() => setChapterView("list")}
+                >
+                  List
+                </button>
+                <button
+                  className={settings.chapterView === "grid" ? "active" : ""}
+                  onClick={() => setChapterView("grid")}
+                >
+                  Grid
+                </button>
+              </div>
+            </div>
           </section>
 
           <section>
@@ -560,71 +665,6 @@ export function Settings({
                   </button>
                 ))}
               </div>
-            </div>
-          </section>
-
-          <section>
-            <h3 className="section-label">Profile data</h3>
-            <p className="muted small">
-              Export to back up or move your data; import on another device.
-            </p>
-            <div className="row">
-              <button onClick={exportData}>Export data</button>
-              <label className="primary import-label">
-                Import data
-                <input
-                  type="file"
-                  accept="application/json"
-                  onChange={importData}
-                  style={{ display: "none" }}
-                />
-              </label>
-            </div>
-          </section>
-
-          <section>
-            <h3 className="section-label">{t("settings.lichessUser")}</h3>
-            <input
-              className="text-input"
-              placeholder="magnuscarlsen"
-              value={settings.lichessUser}
-              onChange={(e) => setLichessUser(e.target.value)}
-            />
-          </section>
-
-          <section>
-            <h3 className="section-label">{t("settings.chesscomUser")}</h3>
-            <input
-              className="text-input"
-              placeholder="hikaru"
-              value={settings.chesscomUser}
-              onChange={(e) => setChesscomUser(e.target.value)}
-            />
-          </section>
-
-          <section>
-            <h3 className="section-label">{t("settings.importSince")}</h3>
-            <input
-              className="text-input"
-              type="date"
-              value={settings.importSince}
-              onChange={(e) => setImportSince(e.target.value)}
-            />
-          </section>
-
-          <section>
-            <h3 className="section-label">{t("settings.gameTypes")}</h3>
-            <div className="speed-list">
-              {SPEEDS.map((sp) => (
-                <label key={sp} className="speed-row">
-                  <input
-                    type="checkbox"
-                    checked={settings.speeds[sp]}
-                    onChange={(e) => setSpeed(sp, e.target.checked)}
-                  />
-                  {t(`speed.${sp}`)}
-                </label>
-              ))}
             </div>
           </section>
         </>

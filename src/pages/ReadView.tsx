@@ -9,6 +9,7 @@ import { formatCountdown, summarizeTimes } from "../stats";
 import { useT } from "../i18n";
 import { LevelBadge } from "../components/LevelBadge";
 import { EnginePanel } from "../components/EnginePanel";
+import { ChapterGrid } from "../components/ChapterGrid";
 import { ChapterReader } from "./ChapterReader";
 import { chapterLineItems, type LineItem } from "../useStudies";
 import type { Line, Study } from "../types";
@@ -32,25 +33,45 @@ export function ReadView({
   setPaused,
 }: Props) {
   const t = useT();
-  const initialChapter = initialLineId
+  const useGrid = settings.chapterView === "grid" && study.chapters.length > 1;
+  const initialChapter: number | null = initialLineId
     ? (study.lines.find((l) => l.id === initialLineId)?.chapterIdx ?? 0)
-    : 0;
-  const [chapterIdx, setChapterIdx] = useState(initialChapter);
+    : useGrid
+      ? null
+      : 0;
+  const [chapterIdx, setChapterIdx] = useState<number | null>(initialChapter);
   const [openLineId, setOpenLineId] = useState<string | null>(initialLineId ?? null);
   const [allLines, setAllLines] = useState(false);
 
-  const chapterLines = study.lines.filter((l) => l.chapterIdx === chapterIdx);
+  const activeChapter = chapterIdx ?? 0;
+  const chapterLines = study.lines.filter((l) => l.chapterIdx === activeChapter);
   const openLine = study.lines.find((l) => l.id === openLineId) ?? null;
 
   if (allLines) {
     return (
       <ChapterReader
         study={study}
-        chapterIdx={chapterIdx}
+        chapterIdx={activeChapter}
         settings={settings}
         onBack={() => setAllLines(false)}
         onPractice={onPractice}
       />
+    );
+  }
+
+  // Grid-mode chapter picker: shown when the user has entered the study but
+  // hasn't picked a chapter yet.
+  if (useGrid && chapterIdx === null) {
+    return (
+      <div className="page">
+        <div className="row">
+          <button className="link" onClick={onBack}>
+            {t("common.back")}
+          </button>
+          <span className="muted small">{study.name}</span>
+        </div>
+        <ChapterGrid study={study} onPick={(i) => setChapterIdx(i)} />
+      </div>
     );
   }
 
@@ -71,16 +92,22 @@ export function ReadView({
   return (
     <div className="page">
       <div className="row">
-        <button className="link" onClick={onBack}>
+        <button
+          className="link"
+          onClick={() => {
+            if (useGrid) setChapterIdx(null);
+            else onBack();
+          }}
+        >
           {t("common.back")}
         </button>
         <span className="muted small">{study.name}</span>
       </div>
 
-      {study.chapters.length > 1 && (
+      {!useGrid && study.chapters.length > 1 && (
         <select
           className="select"
-          value={chapterIdx}
+          value={activeChapter}
           onChange={(e) => setChapterIdx(Number(e.target.value))}
         >
           {study.chapters.map((c, i) => (
@@ -91,11 +118,17 @@ export function ReadView({
         </select>
       )}
 
+      {useGrid && (
+        <div className="line-context">
+          {study.chapters[activeChapter].name}
+        </div>
+      )}
+
       <div className="practice-modes">
         <button onClick={() => setAllLines(true)}>{t("read.allLines")}</button>
         <button
           className="primary"
-          onClick={() => onPractice(chapterLineItems(study, chapterIdx), false)}
+          onClick={() => onPractice(chapterLineItems(study, activeChapter), false)}
         >
           {t("practice.chapter")}
         </button>

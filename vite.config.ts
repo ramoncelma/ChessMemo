@@ -13,7 +13,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.svg", "icon.svg"],
+      includeAssets: ["favicon.svg", "icon.svg", "logo-dark.png"],
       manifest: {
         name: "ChessMemo",
         short_name: "ChessMemo",
@@ -24,9 +24,9 @@ export default defineConfig({
         orientation: "portrait",
         icons: [
           {
-            src: "icon.svg",
-            sizes: "any",
-            type: "image/svg+xml",
+            src: "logo-dark.png",
+            sizes: "497x502",
+            type: "image/png",
             purpose: "any maskable",
           },
         ],

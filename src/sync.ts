@@ -79,7 +79,10 @@ interface GistDto {
   id: string;
   description: string | null;
   updated_at: string;
-  files: Record<string, { content: string }>;
+  files: Record<
+    string,
+    { content: string; truncated?: boolean; raw_url?: string }
+  >;
 }
 
 export async function createGist(
@@ -113,11 +116,29 @@ export async function readGist(
   const json = (await res.json()) as GistDto;
   const file = json.files[GIST_FILE];
   if (!file) throw new Error(`Gist is missing ${GIST_FILE}.`);
+
+  // GitHub truncates file contents larger than ~1 MB in the gist response and
+  // sets `truncated: true`; we then have to fetch the full body from raw_url.
+  // Without this, large repertoires (lots of lines + games cache) cause
+  // "Gist content is not valid JSON" on pull.
+  let content = file.content;
+  if (file.truncated && file.raw_url) {
+    const raw = await fetch(file.raw_url);
+    if (!raw.ok) {
+      throw new Error(
+        `Could not fetch full gist content (${raw.status}). Try again.`,
+      );
+    }
+    content = await raw.text();
+  }
+
   let backup: Backup;
   try {
-    backup = JSON.parse(file.content) as Backup;
+    backup = JSON.parse(content) as Backup;
   } catch {
-    throw new Error(`Gist content is not valid JSON.`);
+    throw new Error(
+      "Gist content isn't valid JSON. The gist may have been edited manually or corrupted; use Push to overwrite it with this device's data.",
+    );
   }
   return { updatedAt: new Date(json.updated_at).getTime(), backup };
 }

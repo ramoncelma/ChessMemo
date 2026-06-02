@@ -2,6 +2,8 @@ import { useState } from "react";
 import { dueCount, retention } from "../stats";
 import { isDue } from "../srs";
 import { nowSrs } from "../clock";
+import { ChapterGrid } from "../components/ChapterGrid";
+import type { Settings } from "../settings";
 import { useT, levelName } from "../i18n";
 import { LevelBadge } from "../components/LevelBadge";
 import {
@@ -17,6 +19,7 @@ import type { Line, Study } from "../types";
 
 interface Props {
   studies: Study[];
+  settings: Settings;
   onStartLine: (items: LineItem[], freeze?: boolean) => void;
   onStartPosition: (positions: PositionItem[]) => void;
   onImport: () => void;
@@ -32,6 +35,7 @@ function dueItemsOf(items: LineItem[]): LineItem[] {
 
 export function Practice({
   studies,
+  settings,
   onStartLine,
   onStartPosition,
   onImport,
@@ -41,7 +45,7 @@ export function Practice({
 }: Props) {
   const t = useT();
   const [selId, setSelId] = useState<string | null>(null);
-  const [chapterIdx, setChapterIdx] = useState(0);
+  const [chapterIdx, setChapterIdx] = useState<number | null>(null);
   const [weighing, setWeighing] = useState<string | null>(null);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
 
@@ -119,22 +123,59 @@ export function Practice({
 
   // ---- Line-selection view for one opening ----
   if (selStudy) {
-    const chLines = selStudy.lines.filter((l) => l.chapterIdx === chapterIdx);
-    const chItems = chapterLineItems(selStudy, chapterIdx);
+    const useGrid =
+      settings.chapterView === "grid" && selStudy.chapters.length > 1;
+    const showGrid = useGrid && chapterIdx === null;
+    const activeChapter = chapterIdx ?? 0;
+    const chLines = selStudy.lines.filter(
+      (l) => l.chapterIdx === activeChapter,
+    );
+    const chItems = chapterLineItems(selStudy, activeChapter);
     const now = nowSrs();
+
+    if (showGrid) {
+      return (
+        <div className="page">
+          <div className="row">
+            <button
+              className="link"
+              onClick={() => {
+                setSelId(null);
+                setChapterIdx(null);
+              }}
+            >
+              {t("common.back")}
+            </button>
+            <span className="muted small">{selStudy.name}</span>
+          </div>
+          <ChapterGrid study={selStudy} onPick={(i) => setChapterIdx(i)} />
+        </div>
+      );
+    }
+
     return (
       <div className="page">
         <div className="row">
-          <button className="link" onClick={() => setSelId(null)}>
+          <button
+            className="link"
+            onClick={() => {
+              if (useGrid) {
+                setChapterIdx(null);
+              } else {
+                setSelId(null);
+                setChapterIdx(null);
+              }
+            }}
+          >
             {t("common.back")}
           </button>
           <span className="muted small">{selStudy.name}</span>
         </div>
 
-        {selStudy.chapters.length > 1 && (
+        {!useGrid && selStudy.chapters.length > 1 && (
           <select
             className="select"
-            value={chapterIdx}
+            value={activeChapter}
             onChange={(e) => setChapterIdx(Number(e.target.value))}
           >
             {selStudy.chapters.map((c, i) => (
@@ -145,18 +186,24 @@ export function Practice({
           </select>
         )}
 
+        {useGrid && (
+          <div className="line-context">
+            {selStudy.chapters[activeChapter].name}
+          </div>
+        )}
+
         {lineButtons(chItems)}
 
         <div className="row">
           <button
             className="link small"
-            onClick={() => pauseLowWeight(selStudy.id, chapterIdx, 5)}
+            onClick={() => pauseLowWeight(selStudy.id, activeChapter, 5)}
           >
             Exclude lines &lt; 5%
           </button>
           <button
             className="link small"
-            onClick={() => resumeAllInChapter(selStudy.id, chapterIdx)}
+            onClick={() => resumeAllInChapter(selStudy.id, activeChapter)}
           >
             Resume paused
           </button>
@@ -246,7 +293,11 @@ export function Practice({
                 className="link"
                 onClick={() => {
                   setSelId(s.id);
-                  setChapterIdx(0);
+                  setChapterIdx(
+                    settings.chapterView === "grid" && s.chapters.length > 1
+                      ? null
+                      : 0,
+                  );
                 }}
               >
                 {t("practice.chooseLines")} →

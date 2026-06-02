@@ -64,6 +64,7 @@ export interface Settings {
   engineArrows: boolean;
   replayFromStartOnMiss: boolean;
   vacationStartedAt: number | null;
+  chapterView: "list" | "grid";
 }
 
 const DEFAULTS: Settings = {
@@ -87,6 +88,7 @@ const DEFAULTS: Settings = {
   engineArrows: true,
   replayFromStartOnMiss: false,
   vacationStartedAt: null,
+  chapterView: "list",
 };
 const KEY = "chessmemo.settings";
 
@@ -150,6 +152,8 @@ export function useSettings() {
         ...s,
         vacationStartedAt: on ? Date.now() : null,
       })),
+    setChapterView: (chapterView: "list" | "grid") =>
+      setSettings((s) => ({ ...s, chapterView })),
   };
 }
 

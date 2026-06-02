@@ -1296,6 +1296,68 @@ button.link.danger {
   filter: brightness(1.05);
 }
 
+.chapter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: 12px;
+  margin-top: 8px;
+}
+
+.chapter-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.05s ease;
+}
+.chapter-card:hover {
+  border-color: var(--accent);
+}
+.chapter-card:active {
+  transform: scale(0.99);
+}
+
+.chapter-card-name {
+  font-weight: 650;
+  color: var(--text);
+  font-size: 0.95rem;
+  line-height: 1.25;
+}
+
+.chapter-card-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  justify-content: space-between;
+}
+
+.chapter-card-tick {
+  color: #2e823c;
+  font-weight: 800;
+}
+
+.chapter-card-bar {
+  height: 6px;
+  border-radius: 99px;
+  background: var(--surface-2);
+  overflow: hidden;
+}
+
+.chapter-card-fill {
+  height: 100%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  transition: width 0.2s ease;
+}
+
+.chapter-card-pct {
+  text-align: right;
+}
+
 .levels {
   display: flex;
   flex-direction: column;
