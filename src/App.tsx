@@ -140,6 +140,8 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
     setReplayFromStartOnMiss,
     setVacation,
     setChapterView,
+    setForgiveIfEngineEquivalent,
+    setForgiveCpTolerance,
   } = useSettings();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [readingId, setReadingId] = useState<string | null>(null);
@@ -296,6 +298,8 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
               setReplayFromStartOnMiss={setReplayFromStartOnMiss}
               setVacation={setVacation}
               setChapterView={setChapterView}
+              setForgiveIfEngineEquivalent={setForgiveIfEngineEquivalent}
+              setForgiveCpTolerance={setForgiveCpTolerance}
             />
           )}
           {tab === "drill" && drill?.kind === "line" && (

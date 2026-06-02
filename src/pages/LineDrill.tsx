@@ -3,6 +3,7 @@ import { Chess } from "chess.js";
 import { Board } from "../components/Board";
 import { grade as gradeSched, RESPONSE_TIMEOUT_MS, type Grade } from "../srs";
 import { appendReview } from "../storage";
+import { fetchEval, type PvLine } from "../engine";
 import { lichessAnalysisUrl } from "../lichess";
 import { useT } from "../i18n";
 import { type LineItem } from "../useStudies";
@@ -29,6 +30,21 @@ function nextTrainee(line: Line, from: number, want: "w" | "b"): number {
 }
 
 const CAP = 20; // keep at most this many response times per bucket
+
+// Collapse mate / cp scores to a single comparable centipawn number. A mate
+// in N is treated as a huge positive (or, for being-mated, huge negative)
+// value with a small slope so faster mates score higher.
+function pvScoreCp(pv: PvLine): number | null {
+  if (pv.mate !== undefined) {
+    const sign = pv.mate >= 0 ? 1 : -1;
+    return sign * (100000 - Math.abs(pv.mate));
+  }
+  return pv.cp ?? null;
+}
+
+function uciOf(from: string, to: string, promo?: string): string {
+  return `${from}${to}${promo ?? ""}`;
+}
 
 // Chapter-scoped index of (fenBefore + from+to+promo) -> the lines that contain
 // such a move and at what ply. Used to recognise transpositions: if the user
@@ -87,6 +103,12 @@ export function LineDrill({
   const [interFen, setInterFen] = useState<string | null>(null);
   const [effectiveLineId, setEffectiveLineId] = useState<string | null>(null);
   const [replaying, setReplaying] = useState(false);
+  const [forgiveCheck, setForgiveCheck] = useState<
+    | { status: "idle" }
+    | { status: "checking" }
+    | { status: "equivalent"; expectedCp: number; userCp: number }
+    | { status: "not-equivalent" }
+  >({ status: "idle" });
   const [finishedSnapshot, setFinishedSnapshot] = useState<{
     studyId: string;
     line: Line;
@@ -260,7 +282,52 @@ export function LineDrill({
     // No match — it's a wrong move.
     setMistake(true);
     setPhase("wrong");
+    const promoChar = move.promotion ?? undefined;
+    if (settings.forgiveIfEngineEquivalent) {
+      setForgiveCheck({ status: "checking" });
+      void runEquivalenceCheck(
+        move.fenBefore,
+        uciOf(move.from, move.to, promoChar),
+        uciOf(from, to, promoChar),
+      );
+    } else {
+      setForgiveCheck({ status: "idle" });
+    }
     return true;
+  }
+
+  async function runEquivalenceCheck(
+    fen: string,
+    expectedUci: string,
+    userUci: string,
+  ) {
+    const result = await fetchEval(fen, 5);
+    if (!result) {
+      setForgiveCheck({ status: "not-equivalent" });
+      return;
+    }
+    const expected = result.lines.find((l) => l.firstUci === expectedUci);
+    const user = result.lines.find((l) => l.firstUci === userUci);
+    const expectedCp =
+      expected !== undefined ? pvScoreCp(expected) : pvScoreCp(result.lines[0]);
+    const userCp = user !== undefined ? pvScoreCp(user) : null;
+    if (expectedCp === null || userCp === null) {
+      setForgiveCheck({ status: "not-equivalent" });
+      return;
+    }
+    const delta = Math.abs(expectedCp - userCp);
+    if (delta <= settings.forgiveCpTolerance) {
+      setForgiveCheck({ status: "equivalent", expectedCp, userCp });
+    } else {
+      setForgiveCheck({ status: "not-equivalent" });
+    }
+  }
+
+  function onForgiveRetry() {
+    setMistake(false);
+    setHinted(false);
+    setForgiveCheck({ status: "idle" });
+    setPhase("awaiting");
   }
 
   function applyGrade(g: Grade) {
@@ -319,6 +386,7 @@ export function LineDrill({
     setPending([]);
     setEffectiveLineId(null);
     setReplaying(false);
+    setForgiveCheck({ status: "idle" });
     setPhase("awaiting");
   }
 
@@ -326,10 +394,12 @@ export function LineDrill({
     // Forgive the current line's misses and continue past this move.
     setMistake(false);
     setHinted(false);
+    setForgiveCheck({ status: "idle" });
     advancePast(tIdx, pending, false);
   }
 
   function onContinueWrong() {
+    setForgiveCheck({ status: "idle" });
     if (settings.replayFromStartOnMiss) {
       // Replay from the top of the line; keep `mistake` true so the line is
       // graded "Again" at the end.
@@ -424,10 +494,27 @@ export function LineDrill({
                 {t("drill.openRead")}
               </button>
             </div>
+            {forgiveCheck.status === "checking" && (
+              <p className="muted small">Checking with Stockfish…</p>
+            )}
+            {forgiveCheck.status === "equivalent" && (
+              <p className="equivalent-note">
+                Stockfish rates your move within{" "}
+                {(settings.forgiveCpTolerance / 100).toFixed(2)} of the
+                expected one (
+                {(forgiveCheck.userCp / 100).toFixed(2)} vs{" "}
+                {(forgiveCheck.expectedCp / 100).toFixed(2)}).
+              </p>
+            )}
             <div className="row wrong-actions">
               <button className="link" onClick={onMouseSlip}>
                 Mouse slip
               </button>
+              {forgiveCheck.status === "equivalent" && (
+                <button className="grade good primary" onClick={onForgiveRetry}>
+                  Retry (no penalty)
+                </button>
+              )}
               <button className="primary big" onClick={onContinueWrong}>
                 {t("drill.continue")}
               </button>

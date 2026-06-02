@@ -65,6 +65,8 @@ export interface Settings {
   replayFromStartOnMiss: boolean;
   vacationStartedAt: number | null;
   chapterView: "list" | "grid";
+  forgiveIfEngineEquivalent: boolean;
+  forgiveCpTolerance: number; // centipawns; 20 = 0.2 pawns
 }
 
 const DEFAULTS: Settings = {
@@ -89,6 +91,8 @@ const DEFAULTS: Settings = {
   replayFromStartOnMiss: false,
   vacationStartedAt: null,
   chapterView: "list",
+  forgiveIfEngineEquivalent: false,
+  forgiveCpTolerance: 20,
 };
 const KEY = "chessmemo.settings";
 
@@ -154,6 +158,10 @@ export function useSettings() {
       })),
     setChapterView: (chapterView: "list" | "grid") =>
       setSettings((s) => ({ ...s, chapterView })),
+    setForgiveIfEngineEquivalent: (forgiveIfEngineEquivalent: boolean) =>
+      setSettings((s) => ({ ...s, forgiveIfEngineEquivalent })),
+    setForgiveCpTolerance: (forgiveCpTolerance: number) =>
+      setSettings((s) => ({ ...s, forgiveCpTolerance })),
   };
 }
 

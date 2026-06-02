@@ -40,6 +40,8 @@ interface Props {
   setReplayFromStartOnMiss: (v: boolean) => void;
   setVacation: (on: boolean) => void;
   setChapterView: (v: "list" | "grid") => void;
+  setForgiveIfEngineEquivalent: (v: boolean) => void;
+  setForgiveCpTolerance: (cp: number) => void;
 }
 
 type Section = "appearance" | "preferences" | "sync" | "about";
@@ -65,6 +67,8 @@ export function Settings({
   setReplayFromStartOnMiss,
   setVacation,
   setChapterView,
+  setForgiveIfEngineEquivalent,
+  setForgiveCpTolerance,
 }: Props) {
   const t = useT();
   const [section, setSection] = useState<Section>("appearance");
@@ -616,6 +620,47 @@ export function Settings({
                 onChange={(e) => setReplayFromStartOnMiss(e.target.checked)}
               />
             </label>
+            <label className="toggle-row">
+              <span>
+                <span className="toggle-title">
+                  Forgive engine-equivalent moves
+                </span>
+                <span className="muted small">
+                  After a wrong move, ask Stockfish: if your move is within the
+                  tolerance below of the expected one, offer a "Retry without
+                  penalty" button instead of grading it as a miss.
+                </span>
+              </span>
+              <input
+                type="checkbox"
+                checked={settings.forgiveIfEngineEquivalent}
+                onChange={(e) =>
+                  setForgiveIfEngineEquivalent(e.target.checked)
+                }
+              />
+            </label>
+            <div className="delay-row">
+              <div>
+                <div className="toggle-title">
+                  Equivalence tolerance ({(settings.forgiveCpTolerance / 100).toFixed(2)} pawns)
+                </div>
+                <div className="muted small">
+                  Maximum evaluation gap, either way, that still counts as
+                  engine-equivalent. Smaller values are stricter.
+                </div>
+              </div>
+              <input
+                type="range"
+                min={5}
+                max={100}
+                step={5}
+                value={settings.forgiveCpTolerance}
+                disabled={!settings.forgiveIfEngineEquivalent}
+                onChange={(e) =>
+                  setForgiveCpTolerance(Number(e.target.value))
+                }
+              />
+            </div>
             <div className="delay-row">
               <div>
                 <div className="toggle-title">Opponent move delay</div>

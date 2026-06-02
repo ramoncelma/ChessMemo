@@ -2,16 +2,25 @@ import type { Line, Study } from "./types";
 
 export interface MastersData {
   total: number;
-  counts: Map<string, number>; // SAN -> games-played count
+  counts: Map<string, number>; // normalised SAN -> games-played count
 }
 
 const cache = new Map<string, MastersData | null>();
 
+// Strip check / mate / annotation glyphs so chess.js SAN ("Nf3+", "Qe2!?")
+// and the masters-explorer SAN compare cleanly.
+function normSan(san: string): string {
+  return san.replace(/[+#!?]/g, "");
+}
+
 export async function fetchMasters(fen: string): Promise<MastersData | null> {
   if (cache.has(fen)) return cache.get(fen) ?? null;
   try {
+    // moves=50 covers virtually every theoretical reply; the default of 12
+    // silently drops anything outside the most popular dozen, which used to
+    // make many of our lines look like zero-frequency theory.
     const r = await fetch(
-      `https://explorer.lichess.ovh/masters?fen=${encodeURIComponent(fen)}`,
+      `https://explorer.lichess.ovh/masters?moves=50&fen=${encodeURIComponent(fen)}`,
     );
     if (!r.ok) {
       cache.set(fen, null);
@@ -23,7 +32,7 @@ export async function fetchMasters(fen: string): Promise<MastersData | null> {
     const counts = new Map<string, number>();
     for (const m of data.moves || []) {
       const c = (m.white || 0) + (m.draws || 0) + (m.black || 0);
-      counts.set(m.san, c);
+      counts.set(normSan(m.san), c);
     }
     const result = { total, counts };
     cache.set(fen, result);
@@ -59,24 +68,23 @@ export async function computeStudyWeights(
     onProgress?.(i, fenList.length);
   }
 
-  // Raw product per line.
+  // Raw product per line. Once we run out of masters data (deep theory the
+  // explorer no longer covers), stop the product instead of zeroing it —
+  // otherwise every line that goes one ply past book ends up at 0% and the
+  // chapter collapses to "all low weights".
   const rawByLine = new Map<string, number>();
   for (const line of study.lines) {
     let p = 1;
+    let anyMatched = false;
     for (const m of line.moves) {
       const data = cache.get(m.fenBefore);
-      if (!data || data.total === 0) {
-        p = 0;
-        break;
-      }
-      const c = data.counts.get(m.san) ?? 0;
-      if (c === 0) {
-        p = 0;
-        break;
-      }
+      if (!data || data.total === 0) break;
+      const c = data.counts.get(normSan(m.san)) ?? 0;
+      if (c === 0) break;
       p *= c / data.total;
+      anyMatched = true;
     }
-    rawByLine.set(line.id, p);
+    rawByLine.set(line.id, anyMatched ? p : 0);
   }
 
   // Normalise within each chapter so weights sum to 100.

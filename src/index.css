@@ -1252,6 +1252,18 @@ button.link.danger {
 .wrong-actions {
   gap: 10px;
   justify-content: center;
+  flex-wrap: wrap;
+}
+
+.equivalent-note {
+  text-align: center;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(46, 130, 60, 0.12);
+  color: #2e823c;
+  font-weight: 600;
+  font-size: 0.9rem;
 }
 
 .grade-row {
