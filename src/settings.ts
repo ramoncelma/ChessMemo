@@ -69,6 +69,8 @@ export interface Settings {
   forgiveCpTolerance: number; // centipawns; 20 = 0.2 pawns
   coverageThreshold: number; // "1 in N" — lines rarer than this are eligible
                               // for the "Exclude rarer" action.
+  maxMemorizationDepth: number; // plies; misses on plies >= this don't
+                                 // count as SRS misses (still shown in UI)
 }
 
 const DEFAULTS: Settings = {
@@ -96,6 +98,7 @@ const DEFAULTS: Settings = {
   forgiveIfEngineEquivalent: false,
   forgiveCpTolerance: 20,
   coverageThreshold: 200,
+  maxMemorizationDepth: 30,
 };
 const KEY = "chessmemo.settings";
 
@@ -167,6 +170,8 @@ export function useSettings() {
       setSettings((s) => ({ ...s, forgiveCpTolerance })),
     setCoverageThreshold: (coverageThreshold: number) =>
       setSettings((s) => ({ ...s, coverageThreshold })),
+    setMaxMemorizationDepth: (maxMemorizationDepth: number) =>
+      setSettings((s) => ({ ...s, maxMemorizationDepth })),
   };
 }
 

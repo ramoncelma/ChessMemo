@@ -43,6 +43,7 @@ interface Props {
   setForgiveIfEngineEquivalent: (v: boolean) => void;
   setForgiveCpTolerance: (cp: number) => void;
   setCoverageThreshold: (n: number) => void;
+  setMaxMemorizationDepth: (n: number) => void;
 }
 
 type Section = "appearance" | "preferences" | "sync" | "about";
@@ -71,6 +72,7 @@ export function Settings({
   setForgiveIfEngineEquivalent,
   setForgiveCpTolerance,
   setCoverageThreshold,
+  setMaxMemorizationDepth,
 }: Props) {
   const t = useT();
   const [section, setSection] = useState<Section>("appearance");
@@ -734,6 +736,28 @@ export function Settings({
                   </button>
                 ))}
               </div>
+            </div>
+            <div className="delay-row">
+              <div>
+                <div className="toggle-title">
+                  Max memorization depth ({settings.maxMemorizationDepth} moves)
+                </div>
+                <div className="muted small">
+                  Errors past this ply are still shown as missed, but the line
+                  is graded as if you'd played it cleanly for spaced
+                  repetition.
+                </div>
+              </div>
+              <input
+                type="range"
+                min={5}
+                max={60}
+                step={1}
+                value={settings.maxMemorizationDepth}
+                onChange={(e) =>
+                  setMaxMemorizationDepth(Number(e.target.value))
+                }
+              />
             </div>
           </section>
         </>

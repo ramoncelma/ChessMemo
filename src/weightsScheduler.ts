@@ -1,4 +1,4 @@
-import { computeStudyWeights } from "./weights";
+import { computeStudyWeights, type FetchStats } from "./weights";
 import type { Study } from "./types";
 
 type Apply = (
@@ -11,6 +11,7 @@ export interface WeightStatus {
   running: boolean;
   done: number;
   total: number;
+  stats: FetchStats;
 }
 
 const debounce = new Map<string, ReturnType<typeof setTimeout>>();
@@ -73,9 +74,14 @@ function runOrQueue(study: Study, apply: Apply) {
     return;
   }
   inFlight.add(study.id);
-  setStatus(study.id, { running: true, done: 0, total: 0 });
-  void computeStudyWeights(study, (done, total) => {
-    setStatus(study.id, { running: true, done, total });
+  setStatus(study.id, {
+    running: true,
+    done: 0,
+    total: 0,
+    stats: { fetched: 0, cached: 0, failed: 0 },
+  });
+  void computeStudyWeights(study, (done, total, stats) => {
+    setStatus(study.id, { running: true, done, total, stats });
   })
     .then((result) => {
       // Stamp the version only when every opponent FEN got a non-null

@@ -205,7 +205,18 @@ export function Practice({
           if (st && st.running) {
             return (
               <p className="muted small">
-                Computing line weights{st.total > 0 ? ` · ${st.done}/${st.total}` : "…"}
+                Computing line weights
+                {st.total > 0 ? ` · ${st.done}/${st.total}` : "…"}
+                {st.stats &&
+                  (st.stats.fetched > 0 ||
+                    st.stats.cached > 0 ||
+                    st.stats.failed > 0) && (
+                    <>
+                      {" "}
+                      ({st.stats.fetched} fetched, {st.stats.cached} cached
+                      {st.stats.failed > 0 && `, ${st.stats.failed} failed`})
+                    </>
+                  )}
               </p>
             );
           }
@@ -334,7 +345,21 @@ export function Practice({
             </div>
             {wstat && wstat.running && (
               <div className="muted small">
-                Computing weights{wstat.total > 0 ? ` · ${wstat.done}/${wstat.total}` : "…"}
+                Computing weights
+                {wstat.total > 0 ? ` · ${wstat.done}/${wstat.total}` : "…"}
+                {wstat.stats &&
+                  (wstat.stats.fetched > 0 ||
+                    wstat.stats.cached > 0 ||
+                    wstat.stats.failed > 0) && (
+                    <>
+                      {" "}
+                      ({wstat.stats.fetched} fetched, {wstat.stats.cached}{" "}
+                      cached
+                      {wstat.stats.failed > 0 &&
+                        `, ${wstat.stats.failed} failed`}
+                      )
+                    </>
+                  )}
               </div>
             )}
             <LevelBar lines={s.lines} />

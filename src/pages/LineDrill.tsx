@@ -103,6 +103,17 @@ export function LineDrill({
   const [interFen, setInterFen] = useState<string | null>(null);
   const [effectiveLineId, setEffectiveLineId] = useState<string | null>(null);
   const [replaying, setReplaying] = useState(false);
+  // The earliest ply at which the user made any kind of mistake (wrong move,
+  // hint, or timeout). Mistakes whose earliest ply is at or beyond the
+  // Preferences "Max memorization depth" don't count as SRS misses, even
+  // though they still surface in the UI.
+  const [earliestMistakePly, setEarliestMistakePly] = useState<number | null>(
+    null,
+  );
+
+  function noteMistakeAt(ply: number) {
+    setEarliestMistakePly((prev) => (prev === null ? ply : Math.min(prev, ply)));
+  }
   const [forgiveCheck, setForgiveCheck] = useState<
     | { status: "idle" }
     | { status: "checking" }
@@ -192,13 +203,20 @@ export function LineDrill({
 
   function finishLine(localPending: Timing[], hadMistake: boolean) {
     const clean = !hadMistake && !hinted;
+    // If the earliest mistake on this line happened at or past the Max
+    // memorization depth, treat the run as clean for SRS purposes (the line
+    // is still UI-marked as missed so the user sees their slip).
+    const lateOnly =
+      earliestMistakePly !== null &&
+      earliestMistakePly >= settings.maxMemorizationDepth;
+    const cleanForSrs = clean || lateOnly;
     setLastClean(clean);
     if (inMain && line && queued) {
       setFinishedSnapshot({
         studyId: queued.studyId,
         line,
         timing: localPending,
-        clean,
+        clean: cleanForSrs,
       });
     } else {
       // Backlog replays don't re-grade — just record the outcome for goNext.
@@ -235,7 +253,10 @@ export function LineDrill({
     // Exact match: continue along the current effective line.
     if (from === move.from && to === move.to) {
       const hadMistake = mistake || hinted || timedOut;
-      if (timedOut) setMistake(true);
+      if (timedOut) {
+        setMistake(true);
+        noteMistakeAt(tIdx);
+      }
       setInterFen(move.fenAfter);
       setPhase("opp");
       setTimeout(() => {
@@ -260,7 +281,10 @@ export function LineDrill({
       if (newLine) {
         // Treat as the user playing the expected move of the new line.
         const hadMistake = mistake || hinted || timedOut;
-        if (timedOut) setMistake(true);
+        if (timedOut) {
+          setMistake(true);
+          noteMistakeAt(tIdx);
+        }
         setEffectiveLineId(newLine.id);
         setInterFen(newLine.moves[pick.ply].fenAfter);
         setPhase("opp");
@@ -287,6 +311,7 @@ export function LineDrill({
 
     // No match — it's a wrong move.
     setMistake(true);
+    noteMistakeAt(tIdx);
     setPhase("wrong");
     const promoChar = move.promotion ?? undefined;
     if (settings.forgiveIfEngineEquivalent) {
@@ -400,6 +425,7 @@ export function LineDrill({
     setEffectiveLineId(null);
     setReplaying(false);
     setForgiveCheck({ status: "idle" });
+    setEarliestMistakePly(null);
     setPhase("awaiting");
   }
 
@@ -479,7 +505,10 @@ export function LineDrill({
             <button
               className="hint-btn"
               disabled={hinted}
-              onClick={() => setHinted(true)}
+              onClick={() => {
+                setHinted(true);
+                noteMistakeAt(tIdx);
+              }}
             >
               {hinted ? t("drill.hintShown") : t("drill.hint")}
             </button>

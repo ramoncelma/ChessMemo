@@ -5,7 +5,7 @@ import type { Study } from "./types";
 // stamped studies under a flawed run. useStudies uses this to recompute
 // weights for studies stamped with an older version, even if every line
 // already has a `weight` value.
-export const WEIGHTS_VERSION = 3;
+export const WEIGHTS_VERSION = 4;
 
 export interface MastersData {
   total: number;
@@ -38,18 +38,36 @@ function loadCache(): Promise<void> {
 let savePending: ReturnType<typeof setTimeout> | null = null;
 function scheduleSaveCache() {
   if (savePending) return;
+  // 500ms — short enough that successful fetches reach IDB even if the user
+  // closes the tab during a long compute, but long enough to batch a few
+  // adjacent fetches into one write.
   savePending = setTimeout(() => {
     savePending = null;
-    const out: Record<string, CacheValue> = {};
-    for (const [fen, v] of cache) {
-      if (!v) continue;
-      out[fen] = {
-        total: v.total,
-        counts: Object.fromEntries(v.counts),
-      };
+    flushCache();
+  }, 500);
+}
+
+function flushCache() {
+  const out: Record<string, CacheValue> = {};
+  for (const [fen, v] of cache) {
+    if (!v) continue;
+    out[fen] = {
+      total: v.total,
+      counts: Object.fromEntries(v.counts),
+    };
+  }
+  void set(CACHE_KEY, out);
+}
+
+if (typeof window !== "undefined") {
+  // Last-chance flush on tab close so we never lose successful fetches.
+  window.addEventListener("beforeunload", () => {
+    if (savePending) {
+      clearTimeout(savePending);
+      savePending = null;
     }
-    void set(CACHE_KEY, out);
-  }, 1500);
+    flushCache();
+  });
 }
 
 function normSan(san: string): string {
@@ -59,11 +77,23 @@ function normSan(san: string): string {
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 // Polite, queued access to the Lichess masters explorer:
-// - one request every BASE_GAP_MS, no bursting;
-// - exponential backoff on 429 / 5xx, up to MAX_BACKOFF_MS, capped retries.
-const BASE_GAP_MS = 1000;
+// - one request every BASE_GAP_MS, no bursting (2s is conservative; the
+//   masters subdomain doesn't publish a per-second limit but anecdotally
+//   tightens up around 1 req/s on heavy use);
+// - if Lichess sends a 429 with Retry-After, honour it; otherwise use
+//   exponential backoff capped at MAX_BACKOFF_MS;
+// - cap retries so a long Lichess outage can't stall a whole compute.
+const BASE_GAP_MS = 2000;
 const MAX_BACKOFF_MS = 60_000;
 let nextAllowedAt = 0;
+
+// Per-compute diagnostics. The scheduler reads these to surface fetched /
+// cached / failed counts in the status bar.
+export interface FetchStats {
+  fetched: number;
+  cached: number;
+  failed: number;
+}
 
 async function throttledFetch(url: string): Promise<Response | null> {
   const wait = nextAllowedAt - Date.now();
@@ -79,7 +109,15 @@ async function throttledFetch(url: string): Promise<Response | null> {
       backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
       continue;
     }
-    if (res.status === 429 || res.status >= 500) {
+    if (res.status === 429) {
+      const ra = res.headers.get("Retry-After");
+      const raMs = ra ? Number(ra) * 1000 : NaN;
+      const wait = Number.isFinite(raMs) && raMs > 0 ? raMs : backoff;
+      await sleep(Math.min(wait, MAX_BACKOFF_MS));
+      backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
+      continue;
+    }
+    if (res.status >= 500) {
       await sleep(backoff);
       backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
       continue;
@@ -122,40 +160,41 @@ export async function fetchMasters(fen: string): Promise<MastersData | null> {
 // OPPONENT moves (user moves are fixed in the repertoire and have probability
 // 1.0). The result is stored on each line as `weight = rawProbability * 100`,
 // i.e. an absolute percentage — NOT a chapter-normalised share.
-//
-// "1 in X games" can be derived for the UI as round(100 / weight).
-//
-// When a position runs out of masters data the product stops rather than
-// zeroing — preserving the probability of the verified prefix.
 export interface ComputeResult {
   weights: Map<string, number>;
   totalFens: number;
-  withData: number; // FENs that returned a real response (non-null) — used
-                    // to decide whether a compute was complete enough to
-                    // stamp the study's weightsVersion.
+  withData: number; // FENs that have valid masters data (fresh or cached).
+  stats: FetchStats;
 }
 
 export async function computeStudyWeights(
   study: Study,
-  onProgress?: (done: number, total: number) => void,
+  onProgress?: (done: number, total: number, stats: FetchStats) => void,
 ): Promise<ComputeResult> {
+  await loadCache();
   const opponentSide: "w" | "b" = study.orientation === "white" ? "b" : "w";
 
-  // Collect every unique opponent-move position. User-move positions don't
-  // need queries — their conditional probability is 1.
   const fens = new Set<string>();
   for (const line of study.lines)
     for (const m of line.moves)
       if (m.color === opponentSide) fens.add(m.fenBefore);
 
   const fenList = [...fens];
+  const stats: FetchStats = { fetched: 0, cached: 0, failed: 0 };
   let done = 0;
   let withData = 0;
   for (const fen of fenList) {
+    const wasCached = cache.has(fen);
     const data = await fetchMasters(fen);
-    if (data !== null) withData++;
+    if (data !== null) {
+      withData++;
+      if (wasCached) stats.cached++;
+      else stats.fetched++;
+    } else {
+      stats.failed++;
+    }
     done++;
-    onProgress?.(done, fenList.length);
+    onProgress?.(done, fenList.length, stats);
   }
 
   const weights = new Map<string, number>();
@@ -173,5 +212,5 @@ export async function computeStudyWeights(
     }
     weights.set(line.id, anyMatched ? p * 100 : 0);
   }
-  return { weights, totalFens: fenList.length, withData };
+  return { weights, totalFens: fenList.length, withData, stats };
 }

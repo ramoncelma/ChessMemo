@@ -142,6 +142,7 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
     setForgiveIfEngineEquivalent,
     setForgiveCpTolerance,
     setCoverageThreshold,
+    setMaxMemorizationDepth,
   } = useSettings();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [readingId, setReadingId] = useState<string | null>(null);
@@ -302,6 +303,7 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
               setForgiveIfEngineEquivalent={setForgiveIfEngineEquivalent}
               setForgiveCpTolerance={setForgiveCpTolerance}
               setCoverageThreshold={setCoverageThreshold}
+              setMaxMemorizationDepth={setMaxMemorizationDepth}
             />
           )}
           {tab === "drill" && drill?.kind === "line" && (

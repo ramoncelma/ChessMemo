@@ -13,6 +13,7 @@ export interface RealGame {
 }
 
 const GAMES_KEY = "chessmemo.lichessGames";
+const MANUAL_GAMES_KEY = "chessmemo.manualGames";
 
 export async function loadGames(): Promise<RealGame[]> {
   return (await get<RealGame[]>(GAMES_KEY)) ?? [];
@@ -20,6 +21,45 @@ export async function loadGames(): Promise<RealGame[]> {
 
 export async function saveGames(games: RealGame[]): Promise<void> {
   await set(GAMES_KEY, games);
+}
+
+export async function loadManualGames(): Promise<RealGame[]> {
+  return (await get<RealGame[]>(MANUAL_GAMES_KEY)) ?? [];
+}
+
+export async function saveManualGames(games: RealGame[]): Promise<void> {
+  await set(MANUAL_GAMES_KEY, games);
+}
+
+function genId(): string {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+// Parse a single PGN into the shape we use for analysis. Returns null on
+// any parse failure.
+export function parseManualPgn(
+  pgn: string,
+  color: "white" | "black",
+  name: string,
+): RealGame | null {
+  try {
+    const ch = new Chess();
+    ch.loadPgn(pgn);
+    const moves = ch.history();
+    if (moves.length === 0) return null;
+    const id = `manual-${genId()}`;
+    return {
+      id,
+      url: "",
+      color,
+      speed: "manual",
+      createdAt: Date.now(),
+      opponent: name || "Manual game",
+      moves,
+    };
+  } catch {
+    return null;
+  }
 }
 
 // Fetch a user's games from the Lichess public API (CORS-enabled, no auth).
@@ -225,8 +265,14 @@ export function analyzeAll(studies: Study[], games: RealGame[]): StudyReport[] {
   return studies.map((study) => {
     const report: StudyReport = { study, followed: [], deviations: [] };
     for (const game of games) {
-      // A repertoire only applies to game modes it is tagged for.
-      if (!study.categories.includes(game.speed as Speed)) continue;
+      // A repertoire only applies to game modes it is tagged for. Manual
+      // games (user-imported PGNs) bypass this filter — they were imported
+      // deliberately and should always be analysed.
+      if (
+        game.speed !== "manual" &&
+        !study.categories.includes(game.speed as Speed)
+      )
+        continue;
       const v = analyzeGame(study, game);
       if (v.kind === "followed") report.followed.push(game);
       else if (v.kind === "deviation")

@@ -4,6 +4,7 @@ const KEYS = [
   "chessmemo.studies",
   "chessmemo.reviewlog",
   "chessmemo.lichessGames",
+  "chessmemo.manualGames",
 ];
 
 export interface Backup {
