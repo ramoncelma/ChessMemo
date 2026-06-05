@@ -173,15 +173,21 @@ export function ReadView({
                 <span className="line-unique">{unique}</span>
               </button>
               <div className="line-status">
-                {l.weight !== undefined && l.weight > 0 && (
+                {l.weight !== undefined && (
                   <span
                     className="weight-tag"
                     title="Frequency in master games (2010+)"
                   >
-                    {l.weight < 0.1 ? "<0.1%" : `${l.weight.toFixed(1)}%`}
-                    <span className="muted small">
-                      {" "}· 1 in {Math.max(1, Math.round(100 / l.weight))}
-                    </span>
+                    {l.weight === 0
+                      ? "rare"
+                      : l.weight < 0.1
+                        ? "<0.1%"
+                        : `${l.weight.toFixed(1)}%`}
+                    {l.weight > 0 && (
+                      <span className="muted small">
+                        {" "}· 1 in {Math.max(1, Math.round(100 / l.weight))}
+                      </span>
+                    )}
                   </span>
                 )}
                 <LevelBadge level={l.sched.level} />

@@ -43,4 +43,7 @@ export interface Study {
   categories: Speed[]; // game modes this repertoire is for
   createdAt: number;
   lines: Line[];
+  // Bumped whenever the weight algorithm or data source changes, so older
+  // computed weights can be detected and refreshed automatically.
+  weightsVersion?: number;
 }

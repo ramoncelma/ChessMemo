@@ -5,6 +5,7 @@ import { mergeTrees, parsePgn, treeToPgn } from "./pgnTree";
 import { isDue } from "./srs";
 import { nowSrs } from "./clock";
 import { scheduleWeightCompute } from "./weightsScheduler";
+import { WEIGHTS_VERSION } from "./weights";
 import type { Chapter, Line, Orientation, Study } from "./types";
 import type { Speed } from "./settings";
 
@@ -169,7 +170,9 @@ export function useStudies() {
   );
 
   // Stable, stale-safe writer. Used both by the user-triggered API and by the
-  // background weights scheduler (which fires after async fetches).
+  // background weights scheduler (which fires after async fetches). Stamps
+  // the study with the current WEIGHTS_VERSION so older runs trigger a
+  // recompute on next mount.
   const setLineWeights = useCallback(
     (studyId: string, weights: Map<string, number>) => {
       setStudies((prev) => {
@@ -177,6 +180,7 @@ export function useStudies() {
           s.id === studyId
             ? {
                 ...s,
+                weightsVersion: WEIGHTS_VERSION,
                 lines: s.lines.map((l) =>
                   weights.has(l.id) ? { ...l, weight: weights.get(l.id) } : l,
                 ),
@@ -198,8 +202,9 @@ export function useStudies() {
     if (!loaded) return;
     for (const study of studies) {
       if (study.lines.length === 0) continue;
-      const needs = study.lines.some((l) => l.weight === undefined);
-      if (needs) scheduleWeightCompute(study, setLineWeights);
+      const stale = study.weightsVersion !== WEIGHTS_VERSION;
+      const missing = study.lines.some((l) => l.weight === undefined);
+      if (stale || missing) scheduleWeightCompute(study, setLineWeights);
     }
   }, [studies, loaded, setLineWeights]);
 
