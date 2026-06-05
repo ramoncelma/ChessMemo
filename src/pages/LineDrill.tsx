@@ -181,6 +181,12 @@ export function LineDrill({
   let fen: string;
   if (interFen) fen = interFen;
   else if (phase === "done") fen = line.moves[line.moves.length - 1].fenAfter;
+  else if (phase === "wrong" && forgiveCheck.status === "equivalent")
+    // Don't spoil the studied move on the board while we're offering Retry —
+    // show the position as it was before the user's wrong attempt.
+    fen = move.fenBefore;
+  else if (phase === "wrong" && forgiveCheck.status === "checking")
+    fen = move.fenBefore;
   else if (phase === "wrong") fen = move.fenAfter;
   else fen = move.fenBefore;
 

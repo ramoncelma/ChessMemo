@@ -216,8 +216,13 @@ export function useStudies() {
             ? {
                 ...s,
                 lines: s.lines.map((l) =>
+                  // Only pause lines whose weight has been computed AND is
+                  // below the threshold. Lines without a computed weight are
+                  // left alone so the action doesn't nuke a chapter while
+                  // the background scheduler is still working.
                   l.chapterIdx === chapterIdx &&
-                  (l.weight ?? 0) < thresholdPct
+                  l.weight !== undefined &&
+                  l.weight < thresholdPct
                     ? { ...l, paused: true }
                     : l,
                 ),

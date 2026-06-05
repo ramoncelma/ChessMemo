@@ -1,9 +1,14 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { dueCount, retention } from "../stats";
 import { isDue } from "../srs";
 import { nowSrs } from "../clock";
 import { ChapterGrid } from "../components/ChapterGrid";
 import { chapterDivergence } from "../divergence";
+import {
+  getWeightStatus,
+  subscribeWeightStatus,
+  type WeightStatus,
+} from "../weightsScheduler";
 import type { Settings } from "../settings";
 import { useT, levelName } from "../i18n";
 import { LevelBadge } from "../components/LevelBadge";
@@ -44,6 +49,12 @@ export function Practice({
   const t = useT();
   const [selId, setSelId] = useState<string | null>(null);
   const [chapterIdx, setChapterIdx] = useState<number | null>(null);
+  const [, forceRender] = useState(0);
+  useEffect(() => subscribeWeightStatus(() => forceRender((n) => n + 1)), []);
+
+  function statusFor(studyId: string): WeightStatus | null {
+    return getWeightStatus(studyId);
+  }
 
   if (studies.length === 0) {
     return (
@@ -180,9 +191,32 @@ export function Practice({
 
         {lineButtons(chItems)}
 
+        {(() => {
+          const st = statusFor(selStudy.id);
+          if (st && st.running) {
+            return (
+              <p className="muted small">
+                Computing line weights{st.total > 0 ? ` · ${st.done}/${st.total}` : "…"}
+              </p>
+            );
+          }
+          const noneWeighted = selStudy.lines
+            .filter((l) => l.chapterIdx === activeChapter)
+            .every((l) => l.weight === undefined);
+          if (noneWeighted) {
+            return (
+              <p className="muted small">
+                Weights not yet computed for this chapter.
+              </p>
+            );
+          }
+          return null;
+        })()}
+
         <div className="row">
           <button
             className="link small"
+            disabled={statusFor(selStudy.id)?.running ?? false}
             onClick={() =>
               pauseLowWeight(
                 selStudy.id,
@@ -276,12 +310,18 @@ export function Practice({
       {studies.map((s) => {
         const items = lineItemsOf(s);
         const due = dueItemsOf(items);
+        const wstat = statusFor(s.id);
         return (
           <section key={s.id} className="study-card">
             <div className="list-title">{s.name}</div>
             <div className="muted small">
               {t("practice.linesCount", { n: s.lines.length, side: side(s) })}
             </div>
+            {wstat && wstat.running && (
+              <div className="muted small">
+                Computing weights{wstat.total > 0 ? ` · ${wstat.done}/${wstat.total}` : "…"}
+              </div>
+            )}
             <LevelBar lines={s.lines} />
 
             <div className="practice-modes">
