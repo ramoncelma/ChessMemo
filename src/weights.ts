@@ -1,10 +1,11 @@
 import { get, set } from "idb-keyval";
 import type { Study } from "./types";
 
-// Bump when the algorithm changes meaningfully. useStudies uses this to
-// recompute weights for studies stamped with an older version, even if every
-// line already has a `weight` value.
-export const WEIGHTS_VERSION = 2;
+// Bump when the algorithm changes meaningfully OR when a previous build
+// stamped studies under a flawed run. useStudies uses this to recompute
+// weights for studies stamped with an older version, even if every line
+// already has a `weight` value.
+export const WEIGHTS_VERSION = 3;
 
 export interface MastersData {
   total: number;

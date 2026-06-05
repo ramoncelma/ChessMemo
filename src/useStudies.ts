@@ -180,15 +180,22 @@ export function useStudies() {
       completed: boolean = true,
     ) => {
       setStudies((prev) => {
+        const study = prev.find((s) => s.id === studyId);
+        if (!study) return prev;
+        const willStamp =
+          completed && study.weightsVersion !== WEIGHTS_VERSION;
+        const willChangeAnyWeight = study.lines.some(
+          (l) => weights.has(l.id) && weights.get(l.id) !== l.weight,
+        );
+        // Avoid touching state when there is nothing to change — otherwise
+        // the studies-watching effect would re-fire and could keep
+        // scheduling more recomputes on every iteration.
+        if (!willStamp && !willChangeAnyWeight) return prev;
         const next = prev.map((s) =>
           s.id === studyId
             ? {
                 ...s,
-                // Only stamp the version when the compute was complete enough
-                // (see the scheduler). Otherwise the auto-trigger refires on
-                // the next mount and the cached masters data fills in the
-                // FENs that failed last time.
-                ...(completed ? { weightsVersion: WEIGHTS_VERSION } : {}),
+                ...(willStamp ? { weightsVersion: WEIGHTS_VERSION } : {}),
                 lines: s.lines.map((l) =>
                   weights.has(l.id) ? { ...l, weight: weights.get(l.id) } : l,
                 ),
