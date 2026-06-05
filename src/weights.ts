@@ -93,8 +93,10 @@ export async function fetchMasters(fen: string): Promise<MastersData | null> {
   const url = `https://explorer.lichess.ovh/masters?moves=50&since=${SINCE_YEAR}&fen=${encodeURIComponent(fen)}`;
   const r = await throttledFetch(url);
   if (!r || !r.ok) {
+    // Don't persist failures — that would lock us out of retrying after a
+    // transient outage or a rate-limit window. The in-memory null still
+    // dedupes within the session so we don't refetch the same FEN tightly.
     cache.set(fen, null);
-    scheduleSaveCache();
     return null;
   }
   const data = await r.json();

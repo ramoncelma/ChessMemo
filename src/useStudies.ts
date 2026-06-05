@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { loadStudies, saveStudies } from "./storage";
 import { buildLines } from "./pgn";
 import { mergeTrees, parsePgn, treeToPgn } from "./pgnTree";
@@ -190,21 +190,16 @@ export function useStudies() {
     [],
   );
 
-  // Auto-trigger background weight computation when a study's line structure
-  // changes. Compares a stable signature of moves per study; ignores SRS-only
-  // updates so reviewing a line doesn't kick off a re-fetch.
-  const lineSigsRef = useRef<Map<string, string>>(new Map());
+  // Auto-trigger background weight computation when a study has lines that
+  // don't have a computed weight yet. Once every line has a defined `weight`
+  // (the result of one full compute), this stops firing — so reloads, PWA
+  // auto-updates, and cloud-sync-pulls don't restart the compute from zero.
   useEffect(() => {
     if (!loaded) return;
     for (const study of studies) {
-      const sig = study.lines
-        .map((l) => `${l.id}:${l.moves.map((m) => m.san).join(",")}`)
-        .join("|");
-      const prev = lineSigsRef.current.get(study.id);
-      if (prev !== sig) {
-        lineSigsRef.current.set(study.id, sig);
-        scheduleWeightCompute(study, setLineWeights);
-      }
+      if (study.lines.length === 0) continue;
+      const needs = study.lines.some((l) => l.weight === undefined);
+      if (needs) scheduleWeightCompute(study, setLineWeights);
     }
   }, [studies, loaded, setLineWeights]);
 

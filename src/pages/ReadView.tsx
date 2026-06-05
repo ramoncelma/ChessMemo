@@ -45,7 +45,23 @@ export function ReadView({
   const [allLines, setAllLines] = useState(false);
 
   const activeChapter = chapterIdx ?? 0;
-  const chapterLines = study.lines.filter((l) => l.chapterIdx === activeChapter);
+  // Sort lines by their SAN sequence so siblings of the same parent variation
+  // sit next to each other in the list. Combined with the shared/unique
+  // colouring of moves, this gives a tree-like read of the chapter.
+  const chapterLines = study.lines
+    .filter((l) => l.chapterIdx === activeChapter)
+    .slice()
+    .sort((a, b) => {
+      const ai = a.moves.length;
+      const bi = b.moves.length;
+      const max = Math.max(ai, bi);
+      for (let i = 0; i < max; i++) {
+        const as = a.moves[i]?.san ?? "";
+        const bs = b.moves[i]?.san ?? "";
+        if (as !== bs) return as < bs ? -1 : 1;
+      }
+      return ai - bi;
+    });
   const divergenceMap = chapterDivergence(study.lines, activeChapter);
   const openLine = study.lines.find((l) => l.id === openLineId) ?? null;
 
@@ -157,6 +173,17 @@ export function ReadView({
                 <span className="line-unique">{unique}</span>
               </button>
               <div className="line-status">
+                {l.weight !== undefined && l.weight > 0 && (
+                  <span
+                    className="weight-tag"
+                    title="Frequency in master games (2010+)"
+                  >
+                    {l.weight < 0.1 ? "<0.1%" : `${l.weight.toFixed(1)}%`}
+                    <span className="muted small">
+                      {" "}· 1 in {Math.max(1, Math.round(100 / l.weight))}
+                    </span>
+                  </span>
+                )}
                 <LevelBadge level={l.sched.level} />
                 {!due && !l.paused && (
                   <span className="muted small">

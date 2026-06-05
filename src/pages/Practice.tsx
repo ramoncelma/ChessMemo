@@ -123,9 +123,18 @@ export function Practice({
       settings.chapterView === "grid" && selStudy.chapters.length > 1;
     const showGrid = useGrid && chapterIdx === null;
     const activeChapter = chapterIdx ?? 0;
-    const chLines = selStudy.lines.filter(
-      (l) => l.chapterIdx === activeChapter,
-    );
+    const chLines = selStudy.lines
+      .filter((l) => l.chapterIdx === activeChapter)
+      .slice()
+      .sort((a, b) => {
+        const max = Math.max(a.moves.length, b.moves.length);
+        for (let i = 0; i < max; i++) {
+          const as = a.moves[i]?.san ?? "";
+          const bs = b.moves[i]?.san ?? "";
+          if (as !== bs) return as < bs ? -1 : 1;
+        }
+        return a.moves.length - b.moves.length;
+      });
     const chItems = chapterLineItems(selStudy, activeChapter);
     const divergenceMap = chapterDivergence(selStudy.lines, activeChapter);
     const now = nowSrs();
