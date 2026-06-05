@@ -211,10 +211,23 @@ export async function flushPendingPush(): Promise<void> {
   await pushToCloud();
 }
 
+async function backupHash(b: Backup): Promise<string> {
+  const text = JSON.stringify(b);
+  const buf = new TextEncoder().encode(text);
+  const hash = await crypto.subtle.digest("SHA-256", buf);
+  return Array.from(new Uint8Array(hash))
+    .map((x) => x.toString(16).padStart(2, "0"))
+    .join("");
+}
+
 // Run at app startup. Reconciles local vs remote:
 //   - remote newer & no local edits  -> pull
 //   - local edits & remote unchanged -> push
-//   - both changed                   -> conflict (no action, user decides)
+//   - both changed                   -> if contents are byte-identical, just
+//                                        resync timestamps (this happens when
+//                                        a previous push reached GitHub but
+//                                        we never recorded the response);
+//                                        otherwise true conflict
 //   - nothing changed                -> ok
 export async function syncOnStart(): Promise<SyncResult> {
   const profile = getProfile();
@@ -226,6 +239,19 @@ export async function syncOnStart(): Promise<SyncResult> {
     const localDirty = localChange > 0 && localChange > profile.lastSyncedAt;
 
     if (remoteNewer && localDirty) {
+      // Possibly a phantom conflict — the previous push completed on
+      // GitHub but we lost the response, so we still think we're dirty.
+      // Hash both sides; if they match, just update our bookkeeping.
+      const localBackup = await exportAll();
+      const [remoteHash, localHash] = await Promise.all([
+        backupHash(backup),
+        backupHash(localBackup),
+      ]);
+      if (remoteHash === localHash) {
+        setProfile({ ...profile, lastSyncedAt: updatedAt });
+        clearLocalChange();
+        return { status: "ok" };
+      }
       return {
         status: "conflict",
         remoteUpdatedAt: updatedAt,

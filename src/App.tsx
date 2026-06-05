@@ -250,6 +250,8 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
                 }}
                 onPractice={startLine}
                 setPaused={setPaused}
+                pauseLowWeight={pauseLowWeight}
+                resumeAllInChapter={resumeAllInChapter}
               />
             ) : (
               <ReadList

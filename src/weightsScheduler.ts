@@ -1,7 +1,11 @@
 import { computeStudyWeights } from "./weights";
 import type { Study } from "./types";
 
-type Apply = (studyId: string, weights: Map<string, number>) => void;
+type Apply = (
+  studyId: string,
+  weights: Map<string, number>,
+  completed: boolean,
+) => void;
 
 export interface WeightStatus {
   running: boolean;
@@ -62,8 +66,14 @@ function runOrQueue(study: Study, apply: Apply) {
   void computeStudyWeights(study, (done, total) => {
     setStatus(study.id, { running: true, done, total });
   })
-    .then((weights) => {
-      apply(study.id, weights);
+    .then((result) => {
+      // Consider the compute "complete" if at least 90% of opponent FENs
+      // returned a real response from Lichess. Less than that suggests
+      // rate-limiting / transient failure, and we want the next mount to
+      // retry rather than baking in mostly-zero weights.
+      const completed =
+        result.totalFens === 0 || result.withData / result.totalFens >= 0.9;
+      apply(study.id, result.weights, completed);
     })
     .catch((err) => {
       console.warn("Weight compute failed:", err);

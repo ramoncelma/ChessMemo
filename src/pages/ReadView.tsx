@@ -23,6 +23,8 @@ interface Props {
   onBack: () => void;
   onPractice: (items: LineItem[], freeze: boolean) => void;
   setPaused: (studyId: string, lineId: string, paused: boolean) => void;
+  pauseLowWeight: (studyId: string, chapterIdx: number, threshold: number) => void;
+  resumeAllInChapter: (studyId: string, chapterIdx: number) => void;
 }
 
 export function ReadView({
@@ -32,6 +34,8 @@ export function ReadView({
   onBack,
   onPractice,
   setPaused,
+  pauseLowWeight,
+  resumeAllInChapter,
 }: Props) {
   const t = useT();
   const useGrid = settings.chapterView === "grid" && study.chapters.length > 1;
@@ -149,6 +153,27 @@ export function ReadView({
           onClick={() => onPractice(chapterLineItems(study, activeChapter), false)}
         >
           {t("practice.chapter")}
+        </button>
+      </div>
+
+      <div className="row">
+        <button
+          className="link small"
+          onClick={() =>
+            pauseLowWeight(
+              study.id,
+              activeChapter,
+              100 / settings.coverageThreshold,
+            )
+          }
+        >
+          Exclude rarer than 1 in {settings.coverageThreshold}
+        </button>
+        <button
+          className="link small"
+          onClick={() => resumeAllInChapter(study.id, activeChapter)}
+        >
+          Resume paused
         </button>
       </div>
 

@@ -126,10 +126,18 @@ export async function fetchMasters(fen: string): Promise<MastersData | null> {
 //
 // When a position runs out of masters data the product stops rather than
 // zeroing — preserving the probability of the verified prefix.
+export interface ComputeResult {
+  weights: Map<string, number>;
+  totalFens: number;
+  withData: number; // FENs that returned a real response (non-null) — used
+                    // to decide whether a compute was complete enough to
+                    // stamp the study's weightsVersion.
+}
+
 export async function computeStudyWeights(
   study: Study,
   onProgress?: (done: number, total: number) => void,
-): Promise<Map<string, number>> {
+): Promise<ComputeResult> {
   const opponentSide: "w" | "b" = study.orientation === "white" ? "b" : "w";
 
   // Collect every unique opponent-move position. User-move positions don't
@@ -141,13 +149,15 @@ export async function computeStudyWeights(
 
   const fenList = [...fens];
   let done = 0;
+  let withData = 0;
   for (const fen of fenList) {
-    await fetchMasters(fen);
+    const data = await fetchMasters(fen);
+    if (data !== null) withData++;
     done++;
     onProgress?.(done, fenList.length);
   }
 
-  const result = new Map<string, number>();
+  const weights = new Map<string, number>();
   for (const line of study.lines) {
     let p = 1;
     let anyMatched = false;
@@ -160,7 +170,7 @@ export async function computeStudyWeights(
       p *= c / data.total;
       anyMatched = true;
     }
-    result.set(line.id, anyMatched ? p * 100 : 0);
+    weights.set(line.id, anyMatched ? p * 100 : 0);
   }
-  return result;
+  return { weights, totalFens: fenList.length, withData };
 }

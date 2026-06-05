@@ -174,13 +174,21 @@ export function useStudies() {
   // the study with the current WEIGHTS_VERSION so older runs trigger a
   // recompute on next mount.
   const setLineWeights = useCallback(
-    (studyId: string, weights: Map<string, number>) => {
+    (
+      studyId: string,
+      weights: Map<string, number>,
+      completed: boolean = true,
+    ) => {
       setStudies((prev) => {
         const next = prev.map((s) =>
           s.id === studyId
             ? {
                 ...s,
-                weightsVersion: WEIGHTS_VERSION,
+                // Only stamp the version when the compute was complete enough
+                // (see the scheduler). Otherwise the auto-trigger refires on
+                // the next mount and the cached masters data fills in the
+                // FENs that failed last time.
+                ...(completed ? { weightsVersion: WEIGHTS_VERSION } : {}),
                 lines: s.lines.map((l) =>
                   weights.has(l.id) ? { ...l, weight: weights.get(l.id) } : l,
                 ),

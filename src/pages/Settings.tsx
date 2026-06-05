@@ -719,20 +719,21 @@ export function Settings({
                   Rare-line threshold (1 in {settings.coverageThreshold})
                 </div>
                 <div className="muted small">
-                  Used by the "Exclude rarer than" button in Practice. Lines
+                  Used by "Exclude rarer than" in Practice and Read. Lines
                   whose master-game frequency is below this get paused.
                 </div>
               </div>
-              <input
-                type="range"
-                min={20}
-                max={2000}
-                step={20}
-                value={settings.coverageThreshold}
-                onChange={(e) =>
-                  setCoverageThreshold(Number(e.target.value))
-                }
-              />
+              <div className="seg compact">
+                {[100, 150, 200, 300, 400, 500].map((n) => (
+                  <button
+                    key={n}
+                    className={settings.coverageThreshold === n ? "active" : ""}
+                    onClick={() => setCoverageThreshold(n)}
+                  >
+                    {n}
+                  </button>
+                ))}
+              </div>
             </div>
           </section>
         </>
