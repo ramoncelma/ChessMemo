@@ -1,82 +1,151 @@
-import type { Line, Study } from "./types";
+import { get, set } from "idb-keyval";
+import type { Study } from "./types";
 
 export interface MastersData {
   total: number;
   counts: Map<string, number>; // normalised SAN -> games-played count
 }
 
-const cache = new Map<string, MastersData | null>();
+interface CacheValue {
+  total: number;
+  counts: Record<string, number>;
+}
 
-// Strip check / mate / annotation glyphs so chess.js SAN ("Nf3+", "Qe2!?")
-// and the masters-explorer SAN compare cleanly.
+const CACHE_KEY = "chessmemo.mastersCache";
+const cache = new Map<string, MastersData | null>();
+let cacheLoaded: Promise<void> | null = null;
+
+function loadCache(): Promise<void> {
+  if (cacheLoaded) return cacheLoaded;
+  cacheLoaded = get<Record<string, CacheValue>>(CACHE_KEY).then((stored) => {
+    if (!stored) return;
+    for (const [fen, value] of Object.entries(stored)) {
+      cache.set(fen, {
+        total: value.total,
+        counts: new Map(Object.entries(value.counts)),
+      });
+    }
+  });
+  return cacheLoaded;
+}
+
+let savePending: ReturnType<typeof setTimeout> | null = null;
+function scheduleSaveCache() {
+  if (savePending) return;
+  savePending = setTimeout(() => {
+    savePending = null;
+    const out: Record<string, CacheValue> = {};
+    for (const [fen, v] of cache) {
+      if (!v) continue;
+      out[fen] = {
+        total: v.total,
+        counts: Object.fromEntries(v.counts),
+      };
+    }
+    void set(CACHE_KEY, out);
+  }, 1500);
+}
+
 function normSan(san: string): string {
   return san.replace(/[+#!?]/g, "");
 }
 
-export async function fetchMasters(fen: string): Promise<MastersData | null> {
-  if (cache.has(fen)) return cache.get(fen) ?? null;
-  try {
-    // moves=50 covers virtually every theoretical reply; the default of 12
-    // silently drops anything outside the most popular dozen, which used to
-    // make many of our lines look like zero-frequency theory.
-    const r = await fetch(
-      `https://explorer.lichess.ovh/masters?moves=50&fen=${encodeURIComponent(fen)}`,
-    );
-    if (!r.ok) {
-      cache.set(fen, null);
-      return null;
-    }
-    const data = await r.json();
-    const total =
-      (data.white || 0) + (data.draws || 0) + (data.black || 0);
-    const counts = new Map<string, number>();
-    for (const m of data.moves || []) {
-      const c = (m.white || 0) + (m.draws || 0) + (m.black || 0);
-      counts.set(normSan(m.san), c);
-    }
-    const result = { total, counts };
-    cache.set(fen, result);
-    return result;
-  } catch {
-    cache.set(fen, null);
-    return null;
-  }
-}
-
 const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
-// Compute master-frequency weights for every line in a study. Within each
-// chapter the weights are normalised to sum to 100. Calls Lichess masters
-// explorer for every unique position along every line (with caching).
+// Polite, queued access to the Lichess masters explorer:
+// - one request every BASE_GAP_MS, no bursting;
+// - exponential backoff on 429 / 5xx, up to MAX_BACKOFF_MS, capped retries.
+const BASE_GAP_MS = 1000;
+const MAX_BACKOFF_MS = 60_000;
+let nextAllowedAt = 0;
+
+async function throttledFetch(url: string): Promise<Response | null> {
+  const wait = nextAllowedAt - Date.now();
+  if (wait > 0) await sleep(wait);
+  let backoff = 5000;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    nextAllowedAt = Date.now() + BASE_GAP_MS;
+    let res: Response;
+    try {
+      res = await fetch(url);
+    } catch {
+      await sleep(backoff);
+      backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
+      continue;
+    }
+    if (res.status === 429 || res.status >= 500) {
+      await sleep(backoff);
+      backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
+      continue;
+    }
+    return res;
+  }
+  return null;
+}
+
+// since=2010 biases the data toward modern theory (Stockfish era) without
+// completely discarding the long-tail of historical games.
+const SINCE_YEAR = 2010;
+
+export async function fetchMasters(fen: string): Promise<MastersData | null> {
+  await loadCache();
+  if (cache.has(fen)) return cache.get(fen) ?? null;
+  const url = `https://explorer.lichess.ovh/masters?moves=50&since=${SINCE_YEAR}&fen=${encodeURIComponent(fen)}`;
+  const r = await throttledFetch(url);
+  if (!r || !r.ok) {
+    cache.set(fen, null);
+    scheduleSaveCache();
+    return null;
+  }
+  const data = await r.json();
+  const total = (data.white || 0) + (data.draws || 0) + (data.black || 0);
+  const counts = new Map<string, number>();
+  for (const m of data.moves || []) {
+    const c = (m.white || 0) + (m.draws || 0) + (m.black || 0);
+    counts.set(normSan(m.san), c);
+  }
+  const result: MastersData = { total, counts };
+  cache.set(fen, result);
+  scheduleSaveCache();
+  return result;
+}
+
+// Compute Expected Encounter Probability per line. The product runs only over
+// OPPONENT moves (user moves are fixed in the repertoire and have probability
+// 1.0). The result is stored on each line as `weight = rawProbability * 100`,
+// i.e. an absolute percentage — NOT a chapter-normalised share.
+//
+// "1 in X games" can be derived for the UI as round(100 / weight).
+//
+// When a position runs out of masters data the product stops rather than
+// zeroing — preserving the probability of the verified prefix.
 export async function computeStudyWeights(
   study: Study,
   onProgress?: (done: number, total: number) => void,
 ): Promise<Map<string, number>> {
-  // Unique fens to fetch (each move's fenBefore).
+  const opponentSide: "w" | "b" = study.orientation === "white" ? "b" : "w";
+
+  // Collect every unique opponent-move position. User-move positions don't
+  // need queries — their conditional probability is 1.
   const fens = new Set<string>();
   for (const line of study.lines)
-    for (const m of line.moves) fens.add(m.fenBefore);
+    for (const m of line.moves)
+      if (m.color === opponentSide) fens.add(m.fenBefore);
 
   const fenList = [...fens];
-  let i = 0;
+  let done = 0;
   for (const fen of fenList) {
-    if (!cache.has(fen)) {
-      await fetchMasters(fen);
-      await sleep(150); // be polite
-    }
-    i++;
-    onProgress?.(i, fenList.length);
+    await fetchMasters(fen);
+    done++;
+    onProgress?.(done, fenList.length);
   }
 
-  // Raw product per line. Once we run out of masters data (deep theory the
-  // explorer no longer covers), stop the product instead of zeroing it —
-  // otherwise every line that goes one ply past book ends up at 0% and the
-  // chapter collapses to "all low weights".
-  const rawByLine = new Map<string, number>();
+  const result = new Map<string, number>();
   for (const line of study.lines) {
     let p = 1;
     let anyMatched = false;
     for (const m of line.moves) {
+      if (m.color !== opponentSide) continue;
       const data = cache.get(m.fenBefore);
       if (!data || data.total === 0) break;
       const c = data.counts.get(normSan(m.san)) ?? 0;
@@ -84,43 +153,7 @@ export async function computeStudyWeights(
       p *= c / data.total;
       anyMatched = true;
     }
-    rawByLine.set(line.id, anyMatched ? p : 0);
-  }
-
-  // Normalise within each chapter so weights sum to 100.
-  const byChapter = new Map<number, Line[]>();
-  for (const l of study.lines) {
-    const list = byChapter.get(l.chapterIdx) ?? [];
-    list.push(l);
-    byChapter.set(l.chapterIdx, list);
-  }
-  const result = new Map<string, number>();
-  for (const lines of byChapter.values()) {
-    const sum = lines.reduce((s, l) => s + (rawByLine.get(l.id) ?? 0), 0);
-    if (sum === 0) {
-      for (const l of lines) result.set(l.id, 0);
-    } else {
-      for (const l of lines)
-        result.set(l.id, ((rawByLine.get(l.id) ?? 0) / sum) * 100);
-    }
+    result.set(line.id, anyMatched ? p * 100 : 0);
   }
   return result;
-}
-
-// Chapter-level weight = the chapter's share within the repertoire, based on
-// the same raw products.
-export function chapterShares(study: Study): Map<number, number> {
-  const rawByChapter = new Map<number, number>();
-  for (const l of study.lines) {
-    const raw = (l.weight ?? 0); // approximation: use stored line weights' chapter sum after normalisation, all chapters sum to 100*n_chapters
-    rawByChapter.set(
-      l.chapterIdx,
-      (rawByChapter.get(l.chapterIdx) ?? 0) + raw,
-    );
-  }
-  const total = [...rawByChapter.values()].reduce((s, x) => s + x, 0);
-  const out = new Map<number, number>();
-  if (total === 0) return out;
-  for (const [idx, sum] of rawByChapter) out.set(idx, (sum / total) * 100);
-  return out;
 }

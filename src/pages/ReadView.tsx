@@ -10,6 +10,7 @@ import { useT } from "../i18n";
 import { LevelBadge } from "../components/LevelBadge";
 import { EnginePanel } from "../components/EnginePanel";
 import { ChapterGrid } from "../components/ChapterGrid";
+import { chapterDivergence } from "../divergence";
 import { ChapterReader } from "./ChapterReader";
 import { chapterLineItems, type LineItem } from "../useStudies";
 import type { Line, Study } from "../types";
@@ -45,6 +46,7 @@ export function ReadView({
 
   const activeChapter = chapterIdx ?? 0;
   const chapterLines = study.lines.filter((l) => l.chapterIdx === activeChapter);
+  const divergenceMap = chapterDivergence(study.lines, activeChapter);
   const openLine = study.lines.find((l) => l.id === openLineId) ?? null;
 
   if (allLines) {
@@ -138,6 +140,9 @@ export function ReadView({
         {chapterLines.map((l) => {
           const due = isDue(l.sched, now);
           const sans = l.moves.map((m) => m.san).join(" ");
+          const divergeAt = divergenceMap.get(l.id) ?? 0;
+          const shared = l.moves.slice(0, divergeAt).map((m) => m.san).join(" ");
+          const unique = l.moves.slice(divergeAt).map((m) => m.san).join(" ");
           return (
             <li
               key={l.id}
@@ -148,7 +153,8 @@ export function ReadView({
                 onClick={() => setOpenLineId(l.id)}
                 title={sans}
               >
-                {sans}
+                {shared && <span className="line-shared">{shared} </span>}
+                <span className="line-unique">{unique}</span>
               </button>
               <div className="line-status">
                 <LevelBadge level={l.sched.level} />

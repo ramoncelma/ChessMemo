@@ -315,7 +315,7 @@ export function LineDrill({
       setForgiveCheck({ status: "not-equivalent" });
       return;
     }
-    const delta = Math.abs(expectedCp - userCp);
+    const delta = expectedCp - userCp; // positive => user's move is worse
     if (delta <= settings.forgiveCpTolerance) {
       setForgiveCheck({ status: "equivalent", expectedCp, userCp });
     } else {
@@ -328,6 +328,13 @@ export function LineDrill({
     setHinted(false);
     setForgiveCheck({ status: "idle" });
     setPhase("awaiting");
+  }
+
+  function onForgiveDismiss() {
+    // User chooses to see the study's solution and grade the line as a miss;
+    // flip the forgive state out so the standard wrong UI (with the expected
+    // SAN spoiler) renders.
+    setForgiveCheck({ status: "not-equivalent" });
   }
 
   function applyGrade(g: Grade) {
@@ -473,54 +480,67 @@ export function LineDrill({
           </div>
         )}
 
-        {phase === "wrong" && (
+        {phase === "wrong" && forgiveCheck.status === "checking" && (
           <div className="wrong-block">
-            <span className="result wrong">
-              ✕ {t("drill.linePlays")} <b>{move.san}</b>
+            <p className="muted small">Checking move with Stockfish…</p>
+          </div>
+        )}
+
+        {phase === "wrong" && forgiveCheck.status === "equivalent" && (
+          <div className="wrong-block">
+            <span className="result correct">
+              Your move is OK, but different from the study's move.
             </span>
-            <div className="wrong-links">
-              <a
-                className="analyze-link"
-                href={lichessAnalysisUrl(playedSans, orientation)}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                {t("drill.analyze")}
-              </a>
-              <button
-                className="analyze-link"
-                onClick={() => onOpenRead(queued.studyId, line.id)}
-              >
-                {t("drill.openRead")}
-              </button>
-            </div>
-            {forgiveCheck.status === "checking" && (
-              <p className="muted small">Checking with Stockfish…</p>
-            )}
-            {forgiveCheck.status === "equivalent" && (
-              <p className="equivalent-note">
-                Stockfish rates your move within{" "}
-                {(settings.forgiveCpTolerance / 100).toFixed(2)} of the
-                expected one (
-                {(forgiveCheck.userCp / 100).toFixed(2)} vs{" "}
-                {(forgiveCheck.expectedCp / 100).toFixed(2)}).
-              </p>
-            )}
+            <p className="equivalent-note">
+              Stockfish rates it within{" "}
+              {(settings.forgiveCpTolerance / 100).toFixed(2)} of the expected
+              continuation. Retry to play the studied move, or dismiss to mark
+              the line as failed and see the solution.
+            </p>
             <div className="row wrong-actions">
-              <button className="link" onClick={onMouseSlip}>
-                Mouse slip
+              <button className="link" onClick={onForgiveDismiss}>
+                Dismiss
               </button>
-              {forgiveCheck.status === "equivalent" && (
-                <button className="grade good primary" onClick={onForgiveRetry}>
-                  Retry (no penalty)
-                </button>
-              )}
-              <button className="primary big" onClick={onContinueWrong}>
-                {t("drill.continue")}
+              <button className="primary big" onClick={onForgiveRetry}>
+                Retry
               </button>
             </div>
           </div>
         )}
+
+        {phase === "wrong" &&
+          forgiveCheck.status !== "checking" &&
+          forgiveCheck.status !== "equivalent" && (
+            <div className="wrong-block">
+              <span className="result wrong">
+                ✕ {t("drill.linePlays")} <b>{move.san}</b>
+              </span>
+              <div className="wrong-links">
+                <a
+                  className="analyze-link"
+                  href={lichessAnalysisUrl(playedSans, orientation)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {t("drill.analyze")}
+                </a>
+                <button
+                  className="analyze-link"
+                  onClick={() => onOpenRead(queued.studyId, line.id)}
+                >
+                  {t("drill.openRead")}
+                </button>
+              </div>
+              <div className="row wrong-actions">
+                <button className="link" onClick={onMouseSlip}>
+                  Mouse slip
+                </button>
+                <button className="primary big" onClick={onContinueWrong}>
+                  {t("drill.continue")}
+                </button>
+              </div>
+            </div>
+          )}
 
         {phase === "done" && (
           <div className="wrong-block">

@@ -42,6 +42,7 @@ interface Props {
   setChapterView: (v: "list" | "grid") => void;
   setForgiveIfEngineEquivalent: (v: boolean) => void;
   setForgiveCpTolerance: (cp: number) => void;
+  setCoverageThreshold: (n: number) => void;
 }
 
 type Section = "appearance" | "preferences" | "sync" | "about";
@@ -69,6 +70,7 @@ export function Settings({
   setChapterView,
   setForgiveIfEngineEquivalent,
   setForgiveCpTolerance,
+  setCoverageThreshold,
 }: Props) {
   const t = useT();
   const [section, setSection] = useState<Section>("appearance");
@@ -710,6 +712,27 @@ export function Settings({
                   </button>
                 ))}
               </div>
+            </div>
+            <div className="delay-row">
+              <div>
+                <div className="toggle-title">
+                  Rare-line threshold (1 in {settings.coverageThreshold})
+                </div>
+                <div className="muted small">
+                  Used by the "Exclude rarer than" button in Practice. Lines
+                  whose master-game frequency is below this get paused.
+                </div>
+              </div>
+              <input
+                type="range"
+                min={20}
+                max={2000}
+                step={20}
+                value={settings.coverageThreshold}
+                onChange={(e) =>
+                  setCoverageThreshold(Number(e.target.value))
+                }
+              />
             </div>
           </section>
         </>

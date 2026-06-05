@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { loadStudies, saveStudies } from "./storage";
 import { buildLines } from "./pgn";
 import { mergeTrees, parsePgn, treeToPgn } from "./pgnTree";
 import { isDue } from "./srs";
 import { nowSrs } from "./clock";
+import { scheduleWeightCompute } from "./weightsScheduler";
 import type { Chapter, Line, Orientation, Study } from "./types";
 import type { Speed } from "./settings";
 
@@ -167,10 +168,12 @@ export function useStudies() {
     [studies, persist],
   );
 
+  // Stable, stale-safe writer. Used both by the user-triggered API and by the
+  // background weights scheduler (which fires after async fetches).
   const setLineWeights = useCallback(
     (studyId: string, weights: Map<string, number>) => {
-      persist(
-        studies.map((s) =>
+      setStudies((prev) => {
+        const next = prev.map((s) =>
           s.id === studyId
             ? {
                 ...s,
@@ -179,11 +182,31 @@ export function useStudies() {
                 ),
               }
             : s,
-        ),
-      );
+        );
+        void saveStudies(next);
+        return next;
+      });
     },
-    [studies, persist],
+    [],
   );
+
+  // Auto-trigger background weight computation when a study's line structure
+  // changes. Compares a stable signature of moves per study; ignores SRS-only
+  // updates so reviewing a line doesn't kick off a re-fetch.
+  const lineSigsRef = useRef<Map<string, string>>(new Map());
+  useEffect(() => {
+    if (!loaded) return;
+    for (const study of studies) {
+      const sig = study.lines
+        .map((l) => `${l.id}:${l.moves.map((m) => m.san).join(",")}`)
+        .join("|");
+      const prev = lineSigsRef.current.get(study.id);
+      if (prev !== sig) {
+        lineSigsRef.current.set(study.id, sig);
+        scheduleWeightCompute(study, setLineWeights);
+      }
+    }
+  }, [studies, loaded, setLineWeights]);
 
   const pauseLowWeight = useCallback(
     (studyId: string, chapterIdx: number, thresholdPct: number) => {

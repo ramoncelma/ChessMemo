@@ -119,7 +119,6 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
     addToChapter,
     setCategories,
     setPaused,
-    setLineWeights,
     pauseLowWeight,
     resumeAllInChapter,
   } = useStudies();
@@ -142,6 +141,7 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
     setChapterView,
     setForgiveIfEngineEquivalent,
     setForgiveCpTolerance,
+    setCoverageThreshold,
   } = useSettings();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [readingId, setReadingId] = useState<string | null>(null);
@@ -234,7 +234,6 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
               onStartLine={startLine}
               onStartPosition={startPosition}
               onImport={() => setTab("repertoire")}
-              setLineWeights={setLineWeights}
               pauseLowWeight={pauseLowWeight}
               resumeAllInChapter={resumeAllInChapter}
             />
@@ -300,6 +299,7 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
               setChapterView={setChapterView}
               setForgiveIfEngineEquivalent={setForgiveIfEngineEquivalent}
               setForgiveCpTolerance={setForgiveCpTolerance}
+              setCoverageThreshold={setCoverageThreshold}
             />
           )}
           {tab === "drill" && drill?.kind === "line" && (

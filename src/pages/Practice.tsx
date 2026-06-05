@@ -3,6 +3,7 @@ import { dueCount, retention } from "../stats";
 import { isDue } from "../srs";
 import { nowSrs } from "../clock";
 import { ChapterGrid } from "../components/ChapterGrid";
+import { chapterDivergence } from "../divergence";
 import type { Settings } from "../settings";
 import { useT, levelName } from "../i18n";
 import { LevelBadge } from "../components/LevelBadge";
@@ -14,7 +15,6 @@ import {
   type LineItem,
   type PositionItem,
 } from "../useStudies";
-import { computeStudyWeights } from "../weights";
 import type { Line, Study } from "../types";
 
 interface Props {
@@ -23,7 +23,6 @@ interface Props {
   onStartLine: (items: LineItem[], freeze?: boolean) => void;
   onStartPosition: (positions: PositionItem[]) => void;
   onImport: () => void;
-  setLineWeights: (studyId: string, weights: Map<string, number>) => void;
   pauseLowWeight: (studyId: string, chapterIdx: number, threshold: number) => void;
   resumeAllInChapter: (studyId: string, chapterIdx: number) => void;
 }
@@ -39,26 +38,12 @@ export function Practice({
   onStartLine,
   onStartPosition,
   onImport,
-  setLineWeights,
   pauseLowWeight,
   resumeAllInChapter,
 }: Props) {
   const t = useT();
   const [selId, setSelId] = useState<string | null>(null);
   const [chapterIdx, setChapterIdx] = useState<number | null>(null);
-  const [weighing, setWeighing] = useState<string | null>(null);
-  const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
-
-  async function computeWeights(study: Study) {
-    setWeighing(study.id);
-    setProgress({ done: 0, total: 0 });
-    const weights = await computeStudyWeights(study, (done, total) =>
-      setProgress({ done, total }),
-    );
-    setLineWeights(study.id, weights);
-    setWeighing(null);
-    setProgress(null);
-  }
 
   if (studies.length === 0) {
     return (
@@ -131,6 +116,7 @@ export function Practice({
       (l) => l.chapterIdx === activeChapter,
     );
     const chItems = chapterLineItems(selStudy, activeChapter);
+    const divergenceMap = chapterDivergence(selStudy.lines, activeChapter);
     const now = nowSrs();
 
     if (showGrid) {
@@ -197,9 +183,15 @@ export function Practice({
         <div className="row">
           <button
             className="link small"
-            onClick={() => pauseLowWeight(selStudy.id, activeChapter, 5)}
+            onClick={() =>
+              pauseLowWeight(
+                selStudy.id,
+                activeChapter,
+                100 / settings.coverageThreshold,
+              )
+            }
           >
-            Exclude lines &lt; 5%
+            Exclude rarer than 1 in {settings.coverageThreshold}
           </button>
           <button
             className="link small"
@@ -213,18 +205,36 @@ export function Practice({
           {chLines.map((l) => {
             const due = isDue(l.sched, now);
             const sans = l.moves.map((m) => m.san).join(" ");
+            const divergeAt = divergenceMap.get(l.id) ?? 0;
+            const shared = l.moves
+              .slice(0, divergeAt)
+              .map((m) => m.san)
+              .join(" ");
+            const unique = l.moves
+              .slice(divergeAt)
+              .map((m) => m.san)
+              .join(" ");
             return (
               <li
                 key={l.id}
                 className={`line-row ${l.paused ? "paused" : ""}`}
               >
                 <span className="line-open" title={sans}>
-                  {sans}
+                  {shared && (
+                    <span className="line-shared">{shared} </span>
+                  )}
+                  <span className="line-unique">{unique}</span>
                 </span>
                 <div className="line-status">
-                  {l.weight !== undefined && (
-                    <span className="weight-tag" title="Master frequency">
-                      {l.weight.toFixed(0)}%
+                  {l.weight !== undefined && l.weight > 0 && (
+                    <span
+                      className="weight-tag"
+                      title="Frequency in master games (2010+)"
+                    >
+                      {l.weight < 0.1 ? "<0.1%" : `${l.weight.toFixed(1)}%`}
+                      <span className="muted small">
+                        {" "}· 1 in {Math.max(1, Math.round(100 / l.weight))}
+                      </span>
                     </span>
                   )}
                   <LevelBadge level={l.sched.level} />
@@ -301,15 +311,6 @@ export function Practice({
                 }}
               >
                 {t("practice.chooseLines")} →
-              </button>
-              <button
-                className="link small"
-                disabled={weighing === s.id}
-                onClick={() => computeWeights(s)}
-              >
-                {weighing === s.id && progress
-                  ? `Weighing… ${progress.done}/${progress.total}`
-                  : "Compute weights"}
               </button>
             </div>
           </section>

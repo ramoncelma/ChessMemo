@@ -1128,7 +1128,7 @@ button.link.danger {
 /* Read: line rows */
 .line-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   background: var(--surface);
   border: 1px solid var(--border);
@@ -1145,9 +1145,19 @@ button.link.danger {
   padding: 4px 0;
   font-family: ui-monospace, "SF Mono", monospace;
   font-size: 0.88rem;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  white-space: normal;
+  overflow: visible;
+  text-overflow: clip;
+  word-break: break-word;
+  line-height: 1.45;
+}
+
+.line-open .line-shared {
+  color: var(--muted);
+}
+.line-open .line-unique {
+  font-weight: 700;
+  color: var(--text);
 }
 
 .line-status {

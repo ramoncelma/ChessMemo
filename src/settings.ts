@@ -67,6 +67,8 @@ export interface Settings {
   chapterView: "list" | "grid";
   forgiveIfEngineEquivalent: boolean;
   forgiveCpTolerance: number; // centipawns; 20 = 0.2 pawns
+  coverageThreshold: number; // "1 in N" — lines rarer than this are eligible
+                              // for the "Exclude rarer" action.
 }
 
 const DEFAULTS: Settings = {
@@ -93,6 +95,7 @@ const DEFAULTS: Settings = {
   chapterView: "list",
   forgiveIfEngineEquivalent: false,
   forgiveCpTolerance: 20,
+  coverageThreshold: 200,
 };
 const KEY = "chessmemo.settings";
 
@@ -162,6 +165,8 @@ export function useSettings() {
       setSettings((s) => ({ ...s, forgiveIfEngineEquivalent })),
     setForgiveCpTolerance: (forgiveCpTolerance: number) =>
       setSettings((s) => ({ ...s, forgiveCpTolerance })),
+    setCoverageThreshold: (coverageThreshold: number) =>
+      setSettings((s) => ({ ...s, coverageThreshold })),
   };
 }
 
