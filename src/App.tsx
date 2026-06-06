@@ -57,6 +57,25 @@ export default function App() {
   }, []);
 
   useEffect(() => {
+    // One-shot scrub: the earlier build sent the Lichess API token through
+    // the gist sync, and Lichess auto-revokes any token it finds in a
+    // public repo. The exporter now strips it, but the gist still has the
+    // old payload. Push once after upgrading so the cloud copy is
+    // overwritten with the cleaned-up export. localStorage marker keeps
+    // this from firing again on subsequent loads.
+    if (localStorage.getItem("chessmemo.secretScrubV1") === "done") return;
+    if (!getProfile()) {
+      localStorage.setItem("chessmemo.secretScrubV1", "done");
+      return;
+    }
+    void pushToCloud()
+      .then(() => localStorage.setItem("chessmemo.secretScrubV1", "done"))
+      .catch(() => {
+        /* try again next load */
+      });
+  }, []);
+
+  useEffect(() => {
     const onUnload = () => {
       void flushPendingPush();
     };

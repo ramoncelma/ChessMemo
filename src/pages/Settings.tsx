@@ -505,8 +505,10 @@ export function Settings({
               >
                 Create a token
               </a>{" "}
-              (no scopes needed) and paste it below. Stored locally; synced
-              with the rest of your profile.
+              (no scopes needed) and paste it below. <strong>This token
+              stays on this device only</strong> — it is never sent to the
+              cloud profile, so you'll need to paste it again on each
+              device you use.
             </p>
             <input
               className="text-input"
