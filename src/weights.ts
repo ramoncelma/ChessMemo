@@ -5,7 +5,7 @@ import type { Study } from "./types";
 // stamped studies under a flawed run. useStudies uses this to recompute
 // weights for studies stamped with an older version, even if every line
 // already has a `weight` value.
-export const WEIGHTS_VERSION = 5;
+export const WEIGHTS_VERSION = 6;
 
 export interface MastersData {
   total: number;
@@ -99,6 +99,8 @@ export interface FetchStats {
   failed: number;
 }
 
+let logged401 = false;
+
 async function throttledFetch(url: string): Promise<Response | null> {
   const wait = nextAllowedAt - Date.now();
   if (wait > 0) await sleep(wait);
@@ -107,11 +109,33 @@ async function throttledFetch(url: string): Promise<Response | null> {
     nextAllowedAt = Date.now() + BASE_GAP_MS;
     let res: Response;
     try {
-      res = await fetch(url);
+      // - credentials: "omit" prevents any stale lichess.ovh session cookie
+      //   from being attached to the request (otherwise Lichess can reply
+      //   401 to a request that should be public);
+      // - mode: "cors" is the explicit default but forcing it makes the
+      //   request unambiguously a simple CORS GET so no preflight runs;
+      // - Accept: application/json is what the explorer returns anyway.
+      res = await fetch(url, {
+        method: "GET",
+        credentials: "omit",
+        mode: "cors",
+        headers: { Accept: "application/json" },
+      });
     } catch {
       await sleep(backoff);
       backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
       continue;
+    }
+    if (res.status === 401 && !logged401) {
+      logged401 = true;
+      // eslint-disable-next-line no-console
+      console.warn(
+        "[weights] Lichess returned 401 Unauthorized on the masters explorer. " +
+          "If you're logged into Lichess in this browser, try opening this URL " +
+          "in a private/incognito window to confirm whether it works without " +
+          "your session cookie: " +
+          url,
+      );
     }
     if (res.status === 429) {
       const ra = res.headers.get("Retry-After");
@@ -131,17 +155,18 @@ async function throttledFetch(url: string): Promise<Response | null> {
   return null;
 }
 
-// Lichess masters indexes positions in a normalized form. chess.js, however,
-// always sets the en-passant target after a two-square pawn move (e.g. `e3`
-// after 1.e4) even when no pawn can actually capture en-passant. If we send
-// that FEN as-is, Lichess can fail to find the position. We strip the
-// en-passant field for the API query but still key our local cache by the
-// original FEN so cached and queried positions agree end-to-end.
+// Lichess masters indexes positions in a normalised form. We strip:
+//   - the en-passant target (chess.js always sets it after a pawn double-
+//     step, even when no capture is legal);
+//   - the halfmove and fullmove counters (Lichess has been seen to reject
+//     well-formed FENs that include them on the explorer endpoint).
+// The local cache is still keyed by the original FEN so producers and
+// consumers stay in sync end-to-end.
 function normalizeFenForMasters(fen: string): string {
   const parts = fen.split(" ");
   if (parts.length < 4) return fen;
-  parts[3] = "-";
-  return parts.join(" ");
+  // Keep only placement, side, castling, en-passant. Force ep to "-".
+  return `${parts[0]} ${parts[1]} ${parts[2]} -`;
 }
 
 // (Removed the since=2010 filter — using all years dramatically increases the
