@@ -5,7 +5,7 @@ import type { Study } from "./types";
 // stamped studies under a flawed run. useStudies uses this to recompute
 // weights for studies stamped with an older version, even if every line
 // already has a `weight` value.
-export const WEIGHTS_VERSION = 6;
+export const WEIGHTS_VERSION = 7;
 
 export interface MastersData {
   total: number;
@@ -101,6 +101,21 @@ export interface FetchStats {
 
 let logged401 = false;
 
+// Lichess personal token, read from the same localStorage the app already
+// uses. The explorer started 401'ing anonymous requests from some regions /
+// flagged IPs; sending a token bypasses that.
+function getLichessToken(): string | null {
+  try {
+    const raw = localStorage.getItem("chessmemo.settings");
+    if (!raw) return null;
+    const s = JSON.parse(raw) as { lichessToken?: string };
+    const t = (s.lichessToken ?? "").trim();
+    return t.length ? t : null;
+  } catch {
+    return null;
+  }
+}
+
 async function throttledFetch(url: string): Promise<Response | null> {
   const wait = nextAllowedAt - Date.now();
   if (wait > 0) await sleep(wait);
@@ -109,17 +124,21 @@ async function throttledFetch(url: string): Promise<Response | null> {
     nextAllowedAt = Date.now() + BASE_GAP_MS;
     let res: Response;
     try {
+      const headers: Record<string, string> = {
+        Accept: "application/json",
+      };
+      const token = getLichessToken();
+      if (token) headers["Authorization"] = `Bearer ${token}`;
       // - credentials: "omit" prevents any stale lichess.ovh session cookie
       //   from being attached to the request (otherwise Lichess can reply
       //   401 to a request that should be public);
       // - mode: "cors" is the explicit default but forcing it makes the
-      //   request unambiguously a simple CORS GET so no preflight runs;
-      // - Accept: application/json is what the explorer returns anyway.
+      //   request unambiguously a simple CORS GET so no preflight runs.
       res = await fetch(url, {
         method: "GET",
         credentials: "omit",
         mode: "cors",
-        headers: { Accept: "application/json" },
+        headers,
       });
     } catch {
       await sleep(backoff);

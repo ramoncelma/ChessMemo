@@ -56,6 +56,10 @@ export interface Settings {
   positionMissResetsLine: boolean;
   lang: Lang;
   lichessUser: string;
+  lichessToken: string; // Optional Lichess personal token. The masters
+                         // opening explorer started returning 401 to anonymous
+                         // requests in some regions; sending a token bypasses
+                         // that. Token needs no scopes — read-only is fine.
   chesscomUser: string;
   importSince: string; // YYYY-MM-DD
   speeds: Record<Speed, boolean>;
@@ -80,6 +84,7 @@ const DEFAULTS: Settings = {
   positionMissResetsLine: false,
   lang: "en",
   lichessUser: "",
+  lichessToken: "",
   chesscomUser: "",
   importSince: "",
   speeds: {
@@ -143,6 +148,8 @@ export function useSettings() {
     setLang: (lang: Lang) => setSettings((s) => ({ ...s, lang })),
     setLichessUser: (lichessUser: string) =>
       setSettings((s) => ({ ...s, lichessUser })),
+    setLichessToken: (lichessToken: string) =>
+      setSettings((s) => ({ ...s, lichessToken })),
     setChesscomUser: (chesscomUser: string) =>
       setSettings((s) => ({ ...s, chesscomUser })),
     setImportSince: (importSince: string) =>

@@ -31,6 +31,7 @@ interface Props {
   setPositionMissResetsLine: (v: boolean) => void;
   setLang: (lang: Lang) => void;
   setLichessUser: (v: string) => void;
+  setLichessToken: (v: string) => void;
   setChesscomUser: (v: string) => void;
   setImportSince: (v: string) => void;
   setSpeed: (speed: Speed, on: boolean) => void;
@@ -60,6 +61,7 @@ export function Settings({
   setPositionMissResetsLine,
   setLang,
   setLichessUser,
+  setLichessToken,
   setChesscomUser,
   setImportSince,
   setSpeed,
@@ -483,6 +485,31 @@ export function Settings({
               placeholder="magnuscarlsen"
               value={settings.lichessUser}
               onChange={(e) => setLichessUser(e.target.value)}
+            />
+          </section>
+
+          <section>
+            <h3 className="section-label">Lichess API token (optional)</h3>
+            <p className="muted small">
+              The masters opening explorer can return 401 to anonymous
+              requests on some networks. A personal Lichess token bypasses
+              that.{" "}
+              <a
+                href="https://lichess.org/account/oauth/token/create?description=ChessMemo"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Create a token
+              </a>{" "}
+              (no scopes needed) and paste it below. Stored locally; synced
+              with the rest of your profile.
+            </p>
+            <input
+              className="text-input"
+              type="password"
+              placeholder="lip_…"
+              value={settings.lichessToken}
+              onChange={(e) => setLichessToken(e.target.value)}
             />
           </section>
 
