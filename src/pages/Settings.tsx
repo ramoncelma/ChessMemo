@@ -20,6 +20,7 @@ import {
   getProfile,
   pullFromCloud,
   pushToCloud,
+  recreateGist,
   setProfile,
 } from "../sync";
 
@@ -212,6 +213,30 @@ export function Settings({
     clearProfile();
     refreshProfile();
     setProfileMsg("Signed out on this device.");
+  }
+
+  async function handleRecreateGist() {
+    if (
+      !confirm(
+        "Delete the cloud profile gist and create a fresh one with this device's current data?\n\n" +
+          "This permanently removes the old gist (and any leaked secrets in its history). Other devices linked to the old gist will need to re-link using the same profile name.",
+      )
+    )
+      return;
+    setProfileErr(null);
+    setProfileMsg(null);
+    setProfileBusy("recreate");
+    try {
+      await recreateGist();
+      refreshProfile();
+      setProfileMsg(
+        "New gist created. The old one is gone. Re-link other devices via Link existing profile.",
+      );
+    } catch (err) {
+      setProfileErr(err instanceof Error ? err.message : String(err));
+    } finally {
+      setProfileBusy(null);
+    }
   }
 
   function relTime(ms: number): string {
@@ -467,6 +492,12 @@ export function Settings({
                     onClick={handlePull}
                   >
                     {profileBusy === "pull" ? "Pulling…" : "Pull from cloud"}
+                  </button>
+                  <button
+                    disabled={profileBusy !== null}
+                    onClick={handleRecreateGist}
+                  >
+                    {profileBusy === "recreate" ? "Recreating…" : "Reset gist"}
                   </button>
                   <button className="link" onClick={handleSignOut}>
                     Sign out

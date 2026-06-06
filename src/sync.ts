@@ -187,6 +187,25 @@ export async function pullFromCloud(): Promise<number> {
   return updatedAt;
 }
 
+// Delete the linked gist on GitHub and create a fresh one with the current
+// local data. Used to scrub leaked secrets from gist history (gists are
+// version-controlled — even a "scrub" push leaves the prior revisions
+// reachable via the History tab).
+export async function recreateGist(): Promise<{ gistId: string; updatedAt: number }> {
+  const profile = getProfile();
+  if (!profile) throw new Error("No profile linked on this device.");
+  const del = await fetch(`https://api.github.com/gists/${profile.gistId}`, {
+    method: "DELETE",
+    headers: gistHeaders(profile.token),
+  });
+  if (!del.ok && del.status !== 404) {
+    throw new Error(`Could not delete the old gist (${del.status}).`);
+  }
+  const { gistId, updatedAt } = await createGist(profile.name, profile.token);
+  setProfile({ ...profile, gistId, lastSyncedAt: updatedAt });
+  return { gistId, updatedAt };
+}
+
 let debounceTimer: ReturnType<typeof setTimeout> | null = null;
 
 export function markDirty() {
