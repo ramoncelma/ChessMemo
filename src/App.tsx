@@ -19,6 +19,7 @@ import {
   syncOnStart,
   type SyncResult,
 } from "./sync";
+import { ensureMastersCacheLoaded } from "./weights";
 
 type Tab =
   | "dashboard"
@@ -47,6 +48,13 @@ export default function App() {
       setSyncPhase("ready");
     });
   }, [syncPhase]);
+
+  useEffect(() => {
+    // Eagerly hydrate the masters cache from IDB so the per-line weight
+    // inspector can show real data the moment the user clicks it (otherwise
+    // every row reads as "no-cache" until the first compute runs).
+    void ensureMastersCacheLoaded();
+  }, []);
 
   useEffect(() => {
     const onUnload = () => {

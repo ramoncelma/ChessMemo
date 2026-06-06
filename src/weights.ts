@@ -39,6 +39,12 @@ function loadCache(): Promise<void> {
   return cacheLoaded;
 }
 
+// Public alias so UI components can prefetch the IDB cache before reading
+// the in-memory `cache` directly (e.g. the per-line weight inspector).
+export function ensureMastersCacheLoaded(): Promise<void> {
+  return loadCache();
+}
+
 let savePending: ReturnType<typeof setTimeout> | null = null;
 function scheduleSaveCache() {
   if (savePending) return;

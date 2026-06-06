@@ -9,7 +9,11 @@ import {
   subscribeWeightStatus,
   type WeightStatus,
 } from "../weightsScheduler";
-import { traceLineWeight, type WeightTraceStep } from "../weights";
+import {
+  ensureMastersCacheLoaded,
+  traceLineWeight,
+  type WeightTraceStep,
+} from "../weights";
 import {
   chapterCoverage,
   studyCoverage,
@@ -336,8 +340,10 @@ export function Practice({
                 </div>
                 {showTrace && (
                   <WeightTrace
-                    steps={traceLineWeight(selStudy, l.id)}
+                    study={selStudy}
+                    lineId={l.id}
                     weight={l.weight}
+                    running={statusFor(selStudy.id)?.running ?? false}
                   />
                 )}
               </li>
@@ -444,12 +450,37 @@ export function Practice({
 }
 
 function WeightTrace({
-  steps,
+  study,
+  lineId,
   weight,
+  running,
 }: {
-  steps: WeightTraceStep[];
+  study: Study;
+  lineId: string;
   weight: number | undefined;
+  running: boolean;
 }) {
+  const [steps, setSteps] = useState<WeightTraceStep[] | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    void ensureMastersCacheLoaded().then(() => {
+      if (!cancelled) setSteps(traceLineWeight(study, lineId));
+    });
+    return () => {
+      cancelled = true;
+    };
+    // We recompute whenever the study reference or line id changes; the live
+    // cache is read at call time so re-runs after a refetch show up the next
+    // time the user reopens the inspector.
+  }, [study, lineId, running]);
+
+  if (steps === null) {
+    return (
+      <div className="weight-trace">
+        <p className="muted small">Loading cached masters data…</p>
+      </div>
+    );
+  }
   if (steps.length === 0) {
     return (
       <div className="weight-trace">
@@ -459,10 +490,12 @@ function WeightTrace({
       </div>
     );
   }
+  const last = steps[steps.length - 1];
   return (
     <div className="weight-trace">
       <div className="muted small">
         Stored weight: {weight === undefined ? "—" : `${weight.toFixed(4)}%`}
+        {running && <> · recomputing now — reopen to refresh</>}
       </div>
       <table className="weight-trace-table">
         <thead>
@@ -512,15 +545,24 @@ function WeightTrace({
           ))}
         </tbody>
       </table>
-      {steps[steps.length - 1].status !== "ok" && (
+      {last.status !== "ok" && last.status !== "no-cache" && (
         <p className="muted small">
-          Chain broke here — open the browser console for the FEN that failed.
+          Chain broke at ply {last.ply} ({last.san}). The stored weight
+          reflects the prefix probability up to this point.
         </p>
       )}
-      {steps[steps.length - 1].status === "no-cache" && (
+      {last.status === "no-cache" && running && (
         <p className="muted small">
-          That position hasn't been fetched (rate-limited or never tried).
-          Try reloading the app once the current compute is done.
+          A recompute is running right now and hasn't reached this position
+          yet. Reopen the inspector once it finishes.
+        </p>
+      )}
+      {last.status === "no-cache" && !running && (
+        <p className="muted small">
+          That position isn't in the local masters cache (last refresh, or
+          never fetched). The stored weight {weight !== undefined ? `(${weight.toFixed(4)}%) ` : ""}
+          is the value from an earlier compute. Use Settings → Sync accounts
+          → "Refresh GM weights" to re-pull.
         </p>
       )}
     </div>
