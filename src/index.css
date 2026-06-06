@@ -1276,6 +1276,43 @@ button.link.danger {
   font-size: 0.9rem;
 }
 
+.weight-tag-btn {
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  color: inherit;
+}
+.weight-tag-btn:hover {
+  text-decoration: underline;
+}
+
+.weight-trace {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--surface-2, rgba(0, 0, 0, 0.04));
+  border-radius: 10px;
+  margin-top: 6px;
+}
+.weight-trace-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  font-family: ui-monospace, "SF Mono", monospace;
+  margin-top: 6px;
+}
+.weight-trace-table th,
+.weight-trace-table td {
+  padding: 4px 8px;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+}
+.weight-trace-table tr.trace-broken td {
+  color: #aa4646;
+  font-weight: 600;
+}
+
 .grade-row {
   display: grid;
   grid-template-columns: repeat(4, 1fr);

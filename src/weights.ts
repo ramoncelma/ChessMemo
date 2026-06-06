@@ -5,7 +5,7 @@ import type { Study } from "./types";
 // stamped studies under a flawed run. useStudies uses this to recompute
 // weights for studies stamped with an older version, even if every line
 // already has a `weight` value.
-export const WEIGHTS_VERSION = 4;
+export const WEIGHTS_VERSION = 5;
 
 export interface MastersData {
   total: number;
@@ -17,7 +17,11 @@ interface CacheValue {
   counts: Record<string, number>;
 }
 
-const CACHE_KEY = "chessmemo.mastersCache";
+// Bumped to v2: previous entries were queried with chess.js's full FEN
+// including en-passant targets and may contain empty responses where the
+// position should have data. A fresh key forces a clean rebuild against
+// the normalised query path.
+const CACHE_KEY = "chessmemo.mastersCache.v2";
 const cache = new Map<string, MastersData | null>();
 let cacheLoaded: Promise<void> | null = null;
 
@@ -127,14 +131,28 @@ async function throttledFetch(url: string): Promise<Response | null> {
   return null;
 }
 
-// since=2010 biases the data toward modern theory (Stockfish era) without
-// completely discarding the long-tail of historical games.
-const SINCE_YEAR = 2010;
+// Lichess masters indexes positions in a normalized form. chess.js, however,
+// always sets the en-passant target after a two-square pawn move (e.g. `e3`
+// after 1.e4) even when no pawn can actually capture en-passant. If we send
+// that FEN as-is, Lichess can fail to find the position. We strip the
+// en-passant field for the API query but still key our local cache by the
+// original FEN so cached and queried positions agree end-to-end.
+function normalizeFenForMasters(fen: string): string {
+  const parts = fen.split(" ");
+  if (parts.length < 4) return fen;
+  parts[3] = "-";
+  return parts.join(" ");
+}
+
+// (Removed the since=2010 filter — using all years dramatically increases the
+// chance that every position along a deep mainline returns enough data to
+// keep the product non-zero.)
 
 export async function fetchMasters(fen: string): Promise<MastersData | null> {
   await loadCache();
   if (cache.has(fen)) return cache.get(fen) ?? null;
-  const url = `https://explorer.lichess.ovh/masters?moves=50&since=${SINCE_YEAR}&fen=${encodeURIComponent(fen)}`;
+  const queryFen = normalizeFenForMasters(fen);
+  const url = `https://explorer.lichess.ovh/masters?moves=50&fen=${encodeURIComponent(queryFen)}`;
   const r = await throttledFetch(url);
   if (!r || !r.ok) {
     // Don't persist failures — that would lock us out of retrying after a
@@ -183,6 +201,10 @@ export async function computeStudyWeights(
   const stats: FetchStats = { fetched: 0, cached: 0, failed: 0 };
   let done = 0;
   let withData = 0;
+  // eslint-disable-next-line no-console
+  console.log(
+    `[weights] "${study.name}" — ${fenList.length} unique opponent FENs to fetch (opponentSide=${opponentSide})`,
+  );
   for (const fen of fenList) {
     const wasCached = cache.has(fen);
     const data = await fetchMasters(fen);
@@ -198,6 +220,7 @@ export async function computeStudyWeights(
   }
 
   const weights = new Map<string, number>();
+  let zeroLines = 0;
   for (const line of study.lines) {
     let p = 1;
     let anyMatched = false;
@@ -210,7 +233,87 @@ export async function computeStudyWeights(
       p *= c / data.total;
       anyMatched = true;
     }
-    weights.set(line.id, anyMatched ? p * 100 : 0);
+    const w = anyMatched ? p * 100 : 0;
+    weights.set(line.id, w);
+    if (w === 0) zeroLines++;
   }
+  // eslint-disable-next-line no-console
+  console.log(
+    `[weights] "${study.name}" done — fenList=${fenList.length}, fetched=${stats.fetched}, cached=${stats.cached}, failed=${stats.failed}, zero-weighted lines=${zeroLines}/${study.lines.length}`,
+  );
   return { weights, totalFens: fenList.length, withData, stats };
+}
+
+// Per-opponent-move trace for the per-line inspector. The UI shows this when
+// the user clicks a line's weight tag, so we can see exactly where the
+// product broke (or whether it produced a real number).
+export interface WeightTraceStep {
+  san: string;
+  fenBefore: string;
+  ply: number;
+  status: "ok" | "no-data-fetched-empty" | "san-not-in-counts" | "no-cache";
+  count?: number;
+  total?: number;
+  conditional?: number;
+  cumulative?: number;
+}
+
+export function traceLineWeight(
+  study: Study,
+  lineId: string,
+): WeightTraceStep[] {
+  const line = study.lines.find((l) => l.id === lineId);
+  if (!line) return [];
+  const opponentSide: "w" | "b" = study.orientation === "white" ? "b" : "w";
+  const steps: WeightTraceStep[] = [];
+  let p = 1;
+  for (let i = 0; i < line.moves.length; i++) {
+    const m = line.moves[i];
+    if (m.color !== opponentSide) continue;
+    const data = cache.get(m.fenBefore);
+    if (!data) {
+      steps.push({
+        san: m.san,
+        fenBefore: m.fenBefore,
+        ply: i,
+        status: "no-cache",
+      });
+      break;
+    }
+    if (data.total === 0) {
+      steps.push({
+        san: m.san,
+        fenBefore: m.fenBefore,
+        ply: i,
+        status: "no-data-fetched-empty",
+        total: 0,
+      });
+      break;
+    }
+    const c = data.counts.get(normSan(m.san)) ?? 0;
+    if (c === 0) {
+      steps.push({
+        san: m.san,
+        fenBefore: m.fenBefore,
+        ply: i,
+        status: "san-not-in-counts",
+        total: data.total,
+        count: 0,
+      });
+      break;
+    }
+    const cond = c / data.total;
+    p *= cond;
+    steps.push({
+      san: m.san,
+      fenBefore: m.fenBefore,
+      ply: i,
+      status: "ok",
+      count: c,
+      total: data.total,
+      conditional: cond,
+      cumulative: p,
+    });
+  }
+  return steps;
 }

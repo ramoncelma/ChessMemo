@@ -9,6 +9,7 @@ import {
   subscribeWeightStatus,
   type WeightStatus,
 } from "../weightsScheduler";
+import { traceLineWeight, type WeightTraceStep } from "../weights";
 import type { Settings } from "../settings";
 import { useT, levelName } from "../i18n";
 import { LevelBadge } from "../components/LevelBadge";
@@ -49,6 +50,7 @@ export function Practice({
   const t = useT();
   const [selId, setSelId] = useState<string | null>(null);
   const [chapterIdx, setChapterIdx] = useState<number | null>(null);
+  const [traceLineId, setTraceLineId] = useState<string | null>(null);
   const [, forceRender] = useState(0);
   useEffect(() => subscribeWeightStatus(() => forceRender((n) => n + 1)), []);
 
@@ -268,6 +270,7 @@ export function Practice({
               .slice(divergeAt)
               .map((m) => m.san)
               .join(" ");
+            const showTrace = traceLineId === l.id;
             return (
               <li
                 key={l.id}
@@ -281,9 +284,12 @@ export function Practice({
                 </span>
                 <div className="line-status">
                   {l.weight !== undefined && (
-                    <span
-                      className="weight-tag"
-                      title="Frequency in master games (2010+)"
+                    <button
+                      className="weight-tag weight-tag-btn"
+                      title="Click to see how this was computed"
+                      onClick={() =>
+                        setTraceLineId(showTrace ? null : l.id)
+                      }
                     >
                       {l.weight === 0
                         ? "rare"
@@ -295,7 +301,7 @@ export function Practice({
                           {" "}· 1 in {Math.max(1, Math.round(100 / l.weight))}
                         </span>
                       )}
-                    </span>
+                    </button>
                   )}
                   <LevelBadge level={l.sched.level} />
                   {!l.paused && (
@@ -309,6 +315,12 @@ export function Practice({
                     </button>
                   )}
                 </div>
+                {showTrace && (
+                  <WeightTrace
+                    steps={traceLineWeight(selStudy, l.id)}
+                    weight={l.weight}
+                  />
+                )}
               </li>
             );
           })}
@@ -396,6 +408,76 @@ export function Practice({
           </section>
         );
       })}
+    </div>
+  );
+}
+
+function WeightTrace({
+  steps,
+  weight,
+}: {
+  steps: WeightTraceStep[];
+  weight: number | undefined;
+}) {
+  if (steps.length === 0) {
+    return (
+      <div className="weight-trace">
+        <p className="muted small">
+          No opponent moves to analyse. (User-only line?)
+        </p>
+      </div>
+    );
+  }
+  return (
+    <div className="weight-trace">
+      <div className="muted small">
+        Stored weight: {weight === undefined ? "—" : `${weight.toFixed(4)}%`}
+      </div>
+      <table className="weight-trace-table">
+        <thead>
+          <tr>
+            <th>Ply</th>
+            <th>Opp. SAN</th>
+            <th>Status</th>
+            <th>Count</th>
+            <th>Total</th>
+            <th>P(move)</th>
+            <th>Cumulative</th>
+          </tr>
+        </thead>
+        <tbody>
+          {steps.map((s, i) => (
+            <tr key={i} className={s.status === "ok" ? "" : "trace-broken"}>
+              <td>{s.ply}</td>
+              <td>{s.san}</td>
+              <td>{s.status}</td>
+              <td>{s.count ?? "—"}</td>
+              <td>{s.total ?? "—"}</td>
+              <td>
+                {s.conditional !== undefined
+                  ? s.conditional.toFixed(4)
+                  : "—"}
+              </td>
+              <td>
+                {s.cumulative !== undefined
+                  ? (s.cumulative * 100).toFixed(4) + "%"
+                  : "—"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {steps[steps.length - 1].status !== "ok" && (
+        <p className="muted small">
+          Chain broke here — open the browser console for the FEN that failed.
+        </p>
+      )}
+      {steps[steps.length - 1].status === "no-cache" && (
+        <p className="muted small">
+          That position hasn't been fetched (rate-limited or never tried).
+          Try reloading the app once the current compute is done.
+        </p>
+      )}
     </div>
   );
 }
