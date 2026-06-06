@@ -121,6 +121,7 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
     setPaused,
     pauseLowWeight,
     resumeAllInChapter,
+    resetWeightsVersions,
   } = useStudies();
   const {
     settings,
@@ -306,6 +307,7 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
               setForgiveCpTolerance={setForgiveCpTolerance}
               setCoverageThreshold={setCoverageThreshold}
               setMaxMemorizationDepth={setMaxMemorizationDepth}
+              resetWeightsVersions={resetWeightsVersions}
             />
           )}
           {tab === "drill" && drill?.kind === "line" && (

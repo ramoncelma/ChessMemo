@@ -10,6 +10,12 @@ import {
   type WeightStatus,
 } from "../weightsScheduler";
 import { traceLineWeight, type WeightTraceStep } from "../weights";
+import {
+  chapterCoverage,
+  studyCoverage,
+  formatCoverage,
+  formatOneIn,
+} from "../coverage";
 import type { Settings } from "../settings";
 import { useT, levelName } from "../i18n";
 import { LevelBadge } from "../components/LevelBadge";
@@ -257,6 +263,19 @@ export function Practice({
           </button>
         </div>
 
+        {(() => {
+          const cov = chapterCoverage(selStudy, activeChapter);
+          if (cov === 0) return null;
+          const oneIn = formatOneIn(cov);
+          return (
+            <p className="muted small">
+              Chapter coverage:{" "}
+              <strong>{formatCoverage(cov)}</strong>
+              {oneIn && <> · {oneIn} master games</>}
+            </p>
+          );
+        })()}
+
         <ul className="list">
           {chLines.map((l) => {
             const due = isDue(l.sched, now);
@@ -274,7 +293,7 @@ export function Practice({
             return (
               <li
                 key={l.id}
-                className={`line-row ${l.paused ? "paused" : ""}`}
+                className={`line-row ${l.paused ? "paused" : ""} ${showTrace ? "expanded" : ""}`}
               >
                 <span className="line-open" title={sans}>
                   {shared && (
@@ -375,6 +394,18 @@ export function Practice({
               </div>
             )}
             <LevelBar lines={s.lines} />
+            {(() => {
+              const cov = studyCoverage(s);
+              if (cov === 0) return null;
+              const oneIn = formatOneIn(cov);
+              return (
+                <div className="muted small">
+                  Repertoire coverage:{" "}
+                  <strong>{formatCoverage(cov)}</strong>
+                  {oneIn && <> · {oneIn} master games</>}
+                </div>
+              );
+            })()}
 
             <div className="practice-modes">
               {due.length > 0 ? (
@@ -436,13 +467,27 @@ function WeightTrace({
       <table className="weight-trace-table">
         <thead>
           <tr>
-            <th>Ply</th>
-            <th>Opp. SAN</th>
-            <th>Status</th>
-            <th>Count</th>
-            <th>Total</th>
-            <th>P(move)</th>
-            <th>Cumulative</th>
+            <th title="0-indexed position in the line (white move 1 = ply 0)">
+              Ply
+            </th>
+            <th title="The opponent's move in this line at this ply">
+              Opp. SAN
+            </th>
+            <th title="ok = a real response; no-cache = not fetched; no-data-fetched-empty = Lichess returned 0 games; san-not-in-counts = the move isn't in the top 50 master replies for this position">
+              Status
+            </th>
+            <th title="How many master games played this exact move from this position">
+              Count
+            </th>
+            <th title="Total master games reaching this position (used as denominator)">
+              Total
+            </th>
+            <th title="Count / Total — probability of this move given the position">
+              P(move)
+            </th>
+            <th title="Product of P(move) for every opponent move so far — probability you reach this position with the line followed exactly">
+              Cumulative
+            </th>
           </tr>
         </thead>
         <tbody>

@@ -11,6 +11,7 @@ import { LevelBadge } from "../components/LevelBadge";
 import { EnginePanel } from "../components/EnginePanel";
 import { ChapterGrid } from "../components/ChapterGrid";
 import { chapterDivergence } from "../divergence";
+import { chapterCoverage, formatCoverage, formatOneIn } from "../coverage";
 import { ChapterReader } from "./ChapterReader";
 import { chapterLineItems, type LineItem } from "../useStudies";
 import type { Line, Study } from "../types";
@@ -176,6 +177,18 @@ export function ReadView({
           Resume paused
         </button>
       </div>
+
+      {(() => {
+        const cov = chapterCoverage(study, activeChapter);
+        if (cov === 0) return null;
+        const oneIn = formatOneIn(cov);
+        return (
+          <p className="muted small">
+            Chapter coverage: <strong>{formatCoverage(cov)}</strong>
+            {oneIn && <> · {oneIn} master games</>}
+          </p>
+        );
+      })()}
 
       <ul className="list">
         {chapterLines.map((l) => {

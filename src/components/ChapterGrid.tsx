@@ -1,5 +1,6 @@
 import { useT } from "../i18n";
 import { RETAINED_LEVEL } from "../srs";
+import { chapterCoverage, formatCoverage } from "../coverage";
 import type { Study } from "../types";
 
 interface Props {
@@ -21,6 +22,7 @@ export function ChapterGrid({ study, onPick }: Props) {
         const learned = lines.filter((l) => l.sched.level >= RETAINED_LEVEL).length;
         const pct = total === 0 ? 0 : Math.round((learned / total) * 100);
         const complete = total > 0 && learned === total;
+        const coverage = chapterCoverage(study, i);
         return (
           <button
             key={i}
@@ -41,6 +43,11 @@ export function ChapterGrid({ study, onPick }: Props) {
               />
             </div>
             <div className="chapter-card-pct muted small">{pct}%</div>
+            {coverage > 0 && (
+              <div className="chapter-card-coverage muted small">
+                Coverage: {formatCoverage(coverage)}
+              </div>
+            )}
           </button>
         );
       })}

@@ -1288,12 +1288,24 @@ button.link.danger {
   text-decoration: underline;
 }
 
+.line-row.expanded {
+  flex-direction: column;
+  align-items: stretch;
+}
+.line-row.expanded > .line-open,
+.line-row.expanded > .line-status {
+  width: 100%;
+}
+
 .weight-trace {
   width: 100%;
+  max-width: 100%;
   padding: 8px 12px;
   background: var(--surface-2, rgba(0, 0, 0, 0.04));
   border-radius: 10px;
   margin-top: 6px;
+  overflow-x: auto; /* scroll if narrow viewport */
+  box-sizing: border-box;
 }
 .weight-trace-table {
   width: 100%;
@@ -1307,6 +1319,11 @@ button.link.danger {
   padding: 4px 8px;
   text-align: left;
   border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.weight-trace-table th[title] {
+  cursor: help;
+  text-decoration: underline dotted;
 }
 .weight-trace-table tr.trace-broken td {
   color: #aa4646;

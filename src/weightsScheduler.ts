@@ -46,6 +46,12 @@ function setStatus(studyId: string, s: WeightStatus | null) {
   notify();
 }
 
+// Called by the manual "Refresh GM weights" button. Lets the auto-trigger
+// schedule another run on this page load for every study.
+export function clearRanThisSession() {
+  ranThisSession.clear();
+}
+
 // Schedule a background recompute for the given study. Multiple rapid calls
 // (e.g. several edits in a row) collapse into one run thanks to the debounce.
 // If a recompute is already running for this study, the latest snapshot is
@@ -84,14 +90,14 @@ function runOrQueue(study: Study, apply: Apply) {
     setStatus(study.id, { running: true, done, total, stats });
   })
     .then((result) => {
-      // Stamp the version only when every opponent FEN got a non-null
-      // response. With <100% we leave the stamp off so the next mount
-      // retries the still-failing FENs (the IDB cache means the ones that
-      // already succeeded won't be refetched). Without this, a single
-      // rate-limited fetch on an early position — say after 1.e4 — zeroed
-      // out every line sharing that prefix, locked in by the stamp.
+      // Stamp the version when at least 95% of opponent FENs returned a real
+      // response. Below that we leave the stamp off and let the next mount
+      // retry the failures (the IDB cache means already-fetched FENs are
+      // free); above it, transient single-FEN failures don't keep
+      // restarting the compute on every reload.
       const completed =
-        result.totalFens === 0 || result.withData === result.totalFens;
+        result.totalFens === 0 ||
+        result.withData / result.totalFens >= 0.95;
       apply(study.id, result.weights, completed);
     })
     .catch((err) => {

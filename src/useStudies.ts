@@ -267,11 +267,23 @@ export function useStudies() {
     [studies, persist],
   );
 
+  const resetWeightsVersions = useCallback(() => {
+    setStudies((prev) => {
+      const next = prev.map((s) => {
+        const { weightsVersion: _w, ...rest } = s;
+        return rest as typeof s;
+      });
+      void saveStudies(next);
+      return next;
+    });
+  }, []);
+
   return {
     studies,
     loaded,
     addStudy,
     removeStudy,
+    resetWeightsVersions,
     updateLine,
     renameStudy,
     renameChapter,

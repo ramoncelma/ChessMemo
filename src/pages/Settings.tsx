@@ -11,6 +11,8 @@ import {
 } from "../settings";
 import { LANGS, type Lang, useT, levelName, levelInterval } from "../i18n";
 import { download, exportAll, importAll } from "../backup";
+import { clearMastersCache } from "../weights";
+import { clearRanThisSession } from "../weightsScheduler";
 import {
   clearProfile,
   createGist,
@@ -45,6 +47,7 @@ interface Props {
   setForgiveCpTolerance: (cp: number) => void;
   setCoverageThreshold: (n: number) => void;
   setMaxMemorizationDepth: (n: number) => void;
+  resetWeightsVersions: () => void;
 }
 
 type Section = "appearance" | "preferences" | "sync" | "about";
@@ -75,6 +78,7 @@ export function Settings({
   setForgiveCpTolerance,
   setCoverageThreshold,
   setMaxMemorizationDepth,
+  resetWeightsVersions,
 }: Props) {
   const t = useT();
   const [section, setSection] = useState<Section>("appearance");
@@ -511,6 +515,27 @@ export function Settings({
               value={settings.lichessToken}
               onChange={(e) => setLichessToken(e.target.value)}
             />
+            <div className="row" style={{ marginTop: 8 }}>
+              <button
+                onClick={async () => {
+                  if (
+                    !confirm(
+                      "Clear the cached masters data and recompute every study's weights? This refetches every position from Lichess.",
+                    )
+                  )
+                    return;
+                  await clearMastersCache();
+                  clearRanThisSession();
+                  resetWeightsVersions();
+                }}
+              >
+                Refresh GM weights
+              </button>
+              <span className="muted small">
+                Re-pulls the latest master games from Lichess for every line
+                in every repertoire.
+              </span>
+            </div>
           </section>
 
           <section>

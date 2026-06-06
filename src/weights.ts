@@ -63,6 +63,20 @@ function flushCache() {
   void set(CACHE_KEY, out);
 }
 
+// Wipe the in-memory and IDB masters cache. After this, every position will
+// be refetched from Lichess on the next compute — used by the manual
+// "Refresh GM weights" button to pull in any new master games since the
+// last fetch.
+export async function clearMastersCache(): Promise<void> {
+  cache.clear();
+  if (savePending) {
+    clearTimeout(savePending);
+    savePending = null;
+  }
+  cacheLoaded = null;
+  await set(CACHE_KEY, undefined);
+}
+
 if (typeof window !== "undefined") {
   // Last-chance flush on tab close so we never lose successful fetches.
   window.addEventListener("beforeunload", () => {
