@@ -166,6 +166,20 @@ export function Explorer({ studies, settings, initial, onInitialApplied }: Props
     return out;
   }, [study, path]);
 
+  // How many of those continuations go through each SAN — feeds the
+  // "Variations" column in the move table. SAN-keyed so the row lookup is
+  // O(1) per render.
+  const variationsBySan = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const c of continuations) {
+      const first = c.remaining[0];
+      if (!first) continue;
+      const key = normSan(first);
+      m.set(key, (m.get(key) ?? 0) + 1);
+    }
+    return m;
+  }, [continuations]);
+
   return (
     <div className="page explorer-page">
       <div className="row" style={{ gap: 12, flexWrap: "wrap" }}>
@@ -216,6 +230,7 @@ export function Explorer({ studies, settings, initial, onInitialApplied }: Props
           <MoveBrowser
             fen={fen}
             coveredSans={coveredSans}
+            variationsBySan={variationsBySan}
             onPlay={playSan}
             sansForAnalyse={sans}
             orientation={orientation}
@@ -264,6 +279,7 @@ export function Explorer({ studies, settings, initial, onInitialApplied }: Props
 interface MoveBrowserProps {
   fen: string;
   coveredSans: Set<string>;
+  variationsBySan: Map<string, number>;
   onPlay: (san: string) => void;
   sansForAnalyse: string;
   orientation: Orientation;
@@ -276,11 +292,13 @@ interface Row {
   liCount: number;
   liWdb?: MoveWdb;
   inRepertoire: boolean;
+  variations: number;
 }
 
 function MoveBrowser({
   fen,
   coveredSans,
+  variationsBySan,
   onPlay,
   sansForAnalyse,
   orientation,
@@ -324,6 +342,7 @@ function MoveBrowser({
       ...gmCounts.keys(),
       ...liCounts.keys(),
       ...coveredSans,
+      ...variationsBySan.keys(),
     ]);
     const list: Row[] = [];
     for (const san of all) {
@@ -334,6 +353,7 @@ function MoveBrowser({
         liCount: liCounts.get(san) ?? 0,
         liWdb: liMoves?.get(san),
         inRepertoire: coveredSans.has(san),
+        variations: variationsBySan.get(san) ?? 0,
       });
     }
     // Rank by combined popularity. We deliberately do NOT bubble
@@ -352,7 +372,7 @@ function MoveBrowser({
     const covered = list.filter((r) => r.inRepertoire);
     const others = list.filter((r) => !r.inRepertoire);
     return [...covered, ...others].slice(0, Math.max(MAX_ROWS, covered.length));
-  }, [gm, li, coveredSans]);
+  }, [gm, li, coveredSans, variationsBySan]);
 
   const gmTotal = gm && gm !== "loading" ? gm.total : 0;
   const liTotal = li && li !== "loading" ? li.total : 0;
@@ -390,6 +410,9 @@ function MoveBrowser({
                 In rep.
               </th>
               <th>Move</th>
+              <th title="Number of repertoire lines whose prefix matches what's on the board and that continue with this move">
+                Variations
+              </th>
               <th title="Games at this position from the GM (Masters) explorer">
                 GM games
               </th>
@@ -411,6 +434,9 @@ function MoveBrowser({
                   >
                     {r.san}
                   </button>
+                </td>
+                <td className="var-cell">
+                  {r.variations > 0 ? r.variations : ""}
                 </td>
                 <td>{r.gmCount > 0 ? r.gmCount.toLocaleString() : "—"}</td>
                 <td>{wdbCell(r.gmWdb)}</td>
