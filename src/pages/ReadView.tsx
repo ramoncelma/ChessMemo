@@ -165,6 +165,14 @@ export function ReadView({
         >
           {t("practice.chapter")}
         </button>
+        {onOpenInExplorer && (
+          <button
+            onClick={() => onOpenInExplorer(study.id, [])}
+            title="Open this repertoire in the Explorer with an empty board"
+          >
+            Explorer ⌕
+          </button>
+        )}
       </div>
 
       <div className="row">

@@ -308,6 +308,10 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
                 studies={studies}
                 onRead={(id) => openRead(id, null)}
                 onImport={() => setTab("repertoire")}
+                onOpenInExplorer={(studyId, sans) => {
+                  setExplorerInit({ studyId, sans });
+                  setTab("explorer");
+                }}
               />
             ))}
           {tab === "realgames" && (
