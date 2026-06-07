@@ -49,6 +49,30 @@ export const SPEEDS: Speed[] = [
   "correspondence",
 ];
 
+// Lichess explorer time-control buckets that the /lichess endpoint accepts.
+// Bullet is excluded by default — opening choices at < 3 min are mostly
+// time-pressure noise rather than considered preparation.
+export const LICHESS_SPEEDS: Speed[] = ["bullet", "blitz", "rapid", "classical"];
+
+// Lichess explorer rating buckets. Each value is the LOWER BOUND of a band
+// the API understands; the bands are 200 ELO wide except the top one which
+// is open-ended. The "0" bucket covers everyone below 1000.
+export const LICHESS_RATINGS = [
+  0, 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2500,
+] as const;
+export type LichessRating = (typeof LICHESS_RATINGS)[number];
+
+export function lichessRatingLabel(r: LichessRating): string {
+  if (r === 0) return "0–999";
+  if (r === 2500) return "2500+";
+  return `${r}–${r + 199}`;
+}
+
+// Which weight source drives line ordering, the "Exclude rarer" filter, and
+// the percentage column in line lists. The other source is still shown next
+// to it as a secondary number — this just picks which one is "primary".
+export type WeightRankingSource = "gm" | "lichess";
+
 export interface Settings {
   boardThemeId: string;
   pieceSet: PieceSet;
@@ -71,6 +95,16 @@ export interface Settings {
                               // for the "Exclude rarer" action.
   maxMemorizationDepth: number; // plies; misses on plies >= this don't
                                  // count as SRS misses (still shown in UI)
+  // GM (Lichess Masters Explorer) query params. null = "no bound, all years".
+  mastersSinceYear: number | null;
+  mastersUntilYear: number | null;
+  // Lichess (Lichess Explorer /lichess endpoint) query params.
+  lichessSpeeds: Record<Speed, boolean>;
+  lichessRatings: Record<number, boolean>;
+  lichessSinceYear: number | null;
+  lichessUntilYear: number | null;
+  // Which source drives ranking — see WeightRankingSource above.
+  weightRankingSource: WeightRankingSource;
 }
 
 const DEFAULTS: Settings = {
@@ -99,6 +133,22 @@ const DEFAULTS: Settings = {
   forgiveCpTolerance: 20,
   coverageThreshold: 200,
   maxMemorizationDepth: 30,
+  mastersSinceYear: null,
+  mastersUntilYear: null,
+  lichessSpeeds: {
+    bullet: false,
+    blitz: true,
+    rapid: true,
+    classical: true,
+    correspondence: false,
+  },
+  lichessRatings: Object.fromEntries(LICHESS_RATINGS.map((r) => [r, true])) as Record<
+    number,
+    boolean
+  >,
+  lichessSinceYear: null,
+  lichessUntilYear: null,
+  weightRankingSource: "gm",
 };
 const KEY = "chessmemo.settings";
 const LICHESS_TOKEN_KEY = "chessmemo.lichessToken";
@@ -211,6 +261,26 @@ export function useSettings() {
       setSettings((s) => ({ ...s, coverageThreshold })),
     setMaxMemorizationDepth: (maxMemorizationDepth: number) =>
       setSettings((s) => ({ ...s, maxMemorizationDepth })),
+    setMastersSinceYear: (mastersSinceYear: number | null) =>
+      setSettings((s) => ({ ...s, mastersSinceYear })),
+    setMastersUntilYear: (mastersUntilYear: number | null) =>
+      setSettings((s) => ({ ...s, mastersUntilYear })),
+    setLichessSpeed: (speed: Speed, on: boolean) =>
+      setSettings((s) => ({
+        ...s,
+        lichessSpeeds: { ...s.lichessSpeeds, [speed]: on },
+      })),
+    setLichessRating: (rating: number, on: boolean) =>
+      setSettings((s) => ({
+        ...s,
+        lichessRatings: { ...s.lichessRatings, [rating]: on },
+      })),
+    setLichessSinceYear: (lichessSinceYear: number | null) =>
+      setSettings((s) => ({ ...s, lichessSinceYear })),
+    setLichessUntilYear: (lichessUntilYear: number | null) =>
+      setSettings((s) => ({ ...s, lichessUntilYear })),
+    setWeightRankingSource: (weightRankingSource: WeightRankingSource) =>
+      setSettings((s) => ({ ...s, weightRankingSource })),
   };
 }
 

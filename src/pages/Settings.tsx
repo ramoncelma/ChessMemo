@@ -2,14 +2,19 @@ import { useState } from "react";
 import { Board } from "../components/Board";
 import {
   BOARD_THEMES,
+  LICHESS_RATINGS,
+  LICHESS_SPEEDS,
   PIECE_SETS,
   SPEEDS,
   getLichessToken,
+  lichessRatingLabel,
   setLichessToken as writeLichessToken,
+  type LichessRating,
   type PieceSet,
   type Settings as SettingsType,
   type Speed,
   type Theme,
+  type WeightRankingSource,
 } from "../settings";
 import { LANGS, type Lang, useT, levelName, levelInterval } from "../i18n";
 import { download, exportAll, importAll } from "../backup";
@@ -49,6 +54,13 @@ interface Props {
   setForgiveCpTolerance: (cp: number) => void;
   setCoverageThreshold: (n: number) => void;
   setMaxMemorizationDepth: (n: number) => void;
+  setMastersSinceYear: (n: number | null) => void;
+  setMastersUntilYear: (n: number | null) => void;
+  setLichessSpeed: (speed: Speed, on: boolean) => void;
+  setLichessRating: (rating: number, on: boolean) => void;
+  setLichessSinceYear: (n: number | null) => void;
+  setLichessUntilYear: (n: number | null) => void;
+  setWeightRankingSource: (s: WeightRankingSource) => void;
   resetWeightsVersions: () => void;
 }
 
@@ -79,6 +91,13 @@ export function Settings({
   setForgiveCpTolerance,
   setCoverageThreshold,
   setMaxMemorizationDepth,
+  setMastersSinceYear,
+  setMastersUntilYear,
+  setLichessSpeed,
+  setLichessRating,
+  setLichessSinceYear,
+  setLichessUntilYear,
+  setWeightRankingSource,
   resetWeightsVersions,
 }: Props) {
   const t = useT();
@@ -576,6 +595,169 @@ export function Settings({
                 Re-pulls the latest master games from Lichess for every line
                 in every repertoire.
               </span>
+            </div>
+          </section>
+
+          <section>
+            <h3 className="section-label">GM data — filters</h3>
+            <p className="muted small">
+              Year range applied to the Lichess Masters Explorer. Leave blank
+              for "all years" (the default). Changing either bound clears the
+              cached masters data and recomputes every study's weights with
+              the new range.
+            </p>
+            <div className="row" style={{ gap: 12, flexWrap: "wrap" }}>
+              <label className="row" style={{ gap: 6 }}>
+                <span className="muted small">Since year</span>
+                <input
+                  className="text-input"
+                  style={{ width: 90 }}
+                  type="number"
+                  min={1500}
+                  max={2100}
+                  placeholder="any"
+                  value={settings.mastersSinceYear ?? ""}
+                  onChange={async (e) => {
+                    const v = e.target.value.trim();
+                    const n = v === "" ? null : Number(v);
+                    if (n !== null && (!Number.isFinite(n) || n < 1500 || n > 2100)) return;
+                    setMastersSinceYear(n);
+                    await clearMastersCache();
+                    clearRanThisSession();
+                    resetWeightsVersions();
+                  }}
+                />
+              </label>
+              <label className="row" style={{ gap: 6 }}>
+                <span className="muted small">Until year</span>
+                <input
+                  className="text-input"
+                  style={{ width: 90 }}
+                  type="number"
+                  min={1500}
+                  max={2100}
+                  placeholder="any"
+                  value={settings.mastersUntilYear ?? ""}
+                  onChange={async (e) => {
+                    const v = e.target.value.trim();
+                    const n = v === "" ? null : Number(v);
+                    if (n !== null && (!Number.isFinite(n) || n < 1500 || n > 2100)) return;
+                    setMastersUntilYear(n);
+                    await clearMastersCache();
+                    clearRanThisSession();
+                    resetWeightsVersions();
+                  }}
+                />
+              </label>
+            </div>
+          </section>
+
+          <section>
+            <h3 className="section-label">Lichess online — filters</h3>
+            <p className="muted small">
+              Applied to the Lichess Online Games Explorer (the second
+              probability shown alongside GM weights). Tick which time
+              controls and rating bands to include.
+            </p>
+            <div className="row" style={{ gap: 16, flexWrap: "wrap" }}>
+              <div>
+                <div className="muted small" style={{ marginBottom: 4 }}>
+                  Time controls
+                </div>
+                {LICHESS_SPEEDS.map((sp) => (
+                  <label key={sp} className="row" style={{ gap: 6 }}>
+                    <input
+                      type="checkbox"
+                      checked={!!settings.lichessSpeeds[sp]}
+                      onChange={(e) => setLichessSpeed(sp, e.target.checked)}
+                    />
+                    <span style={{ textTransform: "capitalize" }}>{sp}</span>
+                  </label>
+                ))}
+              </div>
+              <div>
+                <div className="muted small" style={{ marginBottom: 4 }}>
+                  Rating bands
+                </div>
+                {LICHESS_RATINGS.map((r) => (
+                  <label key={r} className="row" style={{ gap: 6 }}>
+                    <input
+                      type="checkbox"
+                      checked={!!settings.lichessRatings[r]}
+                      onChange={(e) =>
+                        setLichessRating(r, e.target.checked)
+                      }
+                    />
+                    <span>{lichessRatingLabel(r as LichessRating)}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <div className="row" style={{ gap: 12, flexWrap: "wrap", marginTop: 8 }}>
+              <label className="row" style={{ gap: 6 }}>
+                <span className="muted small">Since year</span>
+                <input
+                  className="text-input"
+                  style={{ width: 90 }}
+                  type="number"
+                  min={2010}
+                  max={2100}
+                  placeholder="any"
+                  value={settings.lichessSinceYear ?? ""}
+                  onChange={(e) => {
+                    const v = e.target.value.trim();
+                    const n = v === "" ? null : Number(v);
+                    if (n !== null && (!Number.isFinite(n) || n < 2010 || n > 2100)) return;
+                    setLichessSinceYear(n);
+                  }}
+                />
+              </label>
+              <label className="row" style={{ gap: 6 }}>
+                <span className="muted small">Until year</span>
+                <input
+                  className="text-input"
+                  style={{ width: 90 }}
+                  type="number"
+                  min={2010}
+                  max={2100}
+                  placeholder="any"
+                  value={settings.lichessUntilYear ?? ""}
+                  onChange={(e) => {
+                    const v = e.target.value.trim();
+                    const n = v === "" ? null : Number(v);
+                    if (n !== null && (!Number.isFinite(n) || n < 2010 || n > 2100)) return;
+                    setLichessUntilYear(n);
+                  }}
+                />
+              </label>
+            </div>
+          </section>
+
+          <section>
+            <h3 className="section-label">Ranking source</h3>
+            <p className="muted small">
+              Which probability sorts lines and drives the "Exclude rarer"
+              action. The other probability is always shown next to it.
+            </p>
+            <div className="row" style={{ gap: 12, flexWrap: "wrap" }}>
+              <label className="row" style={{ gap: 6 }}>
+                <input
+                  type="radio"
+                  name="weightRankingSource"
+                  checked={settings.weightRankingSource === "gm"}
+                  onChange={() => setWeightRankingSource("gm")}
+                />
+                <span>GM (Masters)</span>
+              </label>
+              <label className="row" style={{ gap: 6 }}>
+                <input
+                  type="radio"
+                  name="weightRankingSource"
+                  checked={settings.weightRankingSource === "lichess"}
+                  onChange={() => setWeightRankingSource("lichess")}
+                />
+                <span>Lichess online</span>
+              </label>
             </div>
           </section>
 

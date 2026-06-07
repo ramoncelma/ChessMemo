@@ -205,15 +205,30 @@ function normalizeFenForMasters(fen: string): string {
   return `${parts[0]} ${parts[1]} ${parts[2]} -`;
 }
 
-// (Removed the since=2010 filter — using all years dramatically increases the
-// chance that every position along a deep mainline returns enough data to
-// keep the product non-zero.)
+// Read the GM (Masters explorer) year filter out of the user's saved
+// settings. The Settings UI calls clearMastersCache + resetWeightsVersions
+// whenever these change, so the cache key can stay FEN-only here.
+function getMastersYearFilters(): { since: number | null; until: number | null } {
+  try {
+    const raw = localStorage.getItem("chessmemo.settings");
+    if (!raw) return { since: null, until: null };
+    const s = JSON.parse(raw) as Record<string, unknown>;
+    const since = typeof s.mastersSinceYear === "number" ? s.mastersSinceYear : null;
+    const until = typeof s.mastersUntilYear === "number" ? s.mastersUntilYear : null;
+    return { since, until };
+  } catch {
+    return { since: null, until: null };
+  }
+}
 
 export async function fetchMasters(fen: string): Promise<MastersData | null> {
   await loadCache();
   if (cache.has(fen)) return cache.get(fen) ?? null;
   const queryFen = normalizeFenForMasters(fen);
-  const url = `https://explorer.lichess.ovh/masters?moves=50&fen=${encodeURIComponent(queryFen)}`;
+  const { since, until } = getMastersYearFilters();
+  let url = `https://explorer.lichess.ovh/masters?moves=50&fen=${encodeURIComponent(queryFen)}`;
+  if (since !== null) url += `&since=${since}`;
+  if (until !== null) url += `&until=${until}`;
   const r = await throttledFetch(url);
   if (!r || !r.ok) {
     // Don't persist failures — that would lock us out of retrying after a

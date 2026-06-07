@@ -171,6 +171,13 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
     setForgiveCpTolerance,
     setCoverageThreshold,
     setMaxMemorizationDepth,
+    setMastersSinceYear,
+    setMastersUntilYear,
+    setLichessSpeed,
+    setLichessRating,
+    setLichessSinceYear,
+    setLichessUntilYear,
+    setWeightRankingSource,
   } = useSettings();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [readingId, setReadingId] = useState<string | null>(null);
@@ -332,6 +339,13 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
               setForgiveCpTolerance={setForgiveCpTolerance}
               setCoverageThreshold={setCoverageThreshold}
               setMaxMemorizationDepth={setMaxMemorizationDepth}
+              setMastersSinceYear={setMastersSinceYear}
+              setMastersUntilYear={setMastersUntilYear}
+              setLichessSpeed={setLichessSpeed}
+              setLichessRating={setLichessRating}
+              setLichessSinceYear={setLichessSinceYear}
+              setLichessUntilYear={setLichessUntilYear}
+              setWeightRankingSource={setWeightRankingSource}
               resetWeightsVersions={resetWeightsVersions}
             />
           )}
