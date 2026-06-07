@@ -1,6 +1,18 @@
 import { computeStudyWeights, type FetchStats } from "./weights";
 import type { Study } from "./types";
 
+// Weights need the Lichess masters explorer, which 401's anonymous requests
+// on some networks. Without a personal token the whole compute is skipped so
+// we don't burn a study's worth of FENs into a wall of 401s — the UI just
+// shows no weight tags until a token is pasted in Settings.
+function hasLichessToken(): boolean {
+  try {
+    return ((localStorage.getItem("chessmemo.lichessToken") ?? "").trim()).length > 0;
+  } catch {
+    return false;
+  }
+}
+
 type Apply = (
   studyId: string,
   weights: Map<string, number>,
@@ -57,6 +69,7 @@ export function clearRanThisSession() {
 // If a recompute is already running for this study, the latest snapshot is
 // queued and processed once the current run completes.
 export function scheduleWeightCompute(study: Study, apply: Apply) {
+  if (!hasLichessToken()) return;
   // Allow a re-run if there are new lines without weights yet (e.g. the user
   // just added a chapter); otherwise honour the one-per-session lock.
   const hasMissing = study.lines.some((l) => l.weight === undefined);

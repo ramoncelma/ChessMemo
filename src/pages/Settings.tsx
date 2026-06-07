@@ -528,11 +528,11 @@ export function Settings({
           </section>
 
           <section>
-            <h3 className="section-label">Lichess API token (optional)</h3>
+            <h3 className="section-label">Lichess API token</h3>
             <p className="muted small">
-              The masters opening explorer can return 401 to anonymous
-              requests on some networks. A personal Lichess token bypasses
-              that.{" "}
+              Required to compute opening-frequency weights. The masters
+              explorer 401's anonymous requests on most networks, so without
+              a token the weight tags stay hidden across Practice and Read.{" "}
               <a
                 href="https://lichess.org/account/oauth/token/create?description=ChessMemo"
                 target="_blank"
