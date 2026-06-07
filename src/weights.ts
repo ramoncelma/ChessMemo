@@ -560,8 +560,10 @@ export async function fetchLichess(fen: string): Promise<LichessData | null> {
     `speeds=${settings.speeds.join(",")}`,
     `ratings=${settings.ratings.join(",")}`,
   ];
-  if (settings.since !== null) params.push(`since=${settings.since}`);
-  if (settings.until !== null) params.push(`until=${settings.until}`);
+  // /lichess (unlike /masters) expects YYYY-MM, not bare YYYY — return
+  // 400 otherwise. Use January for since, December for until.
+  if (settings.since !== null) params.push(`since=${settings.since}-01`);
+  if (settings.until !== null) params.push(`until=${settings.until}-12`);
   const url = `https://explorer.lichess.ovh/lichess?${params.join("&")}`;
 
   const r = await throttledFetch(url);
