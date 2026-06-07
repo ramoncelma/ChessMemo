@@ -85,6 +85,17 @@ interface GistDto {
   >;
 }
 
+// Thrown when GitHub returns 404 for a gist read/patch — usually because the
+// linked gist was deleted (e.g. by a recreateGist run on a different device)
+// and this device is still pointing at the stale id. Callers catch this and
+// try to recover by re-resolving the gist id from the profile name.
+class GistNotFoundError extends Error {
+  constructor() {
+    super("Gist not found (404).");
+    this.name = "GistNotFoundError";
+  }
+}
+
 export async function createGist(
   name: string,
   token: string,
@@ -110,6 +121,7 @@ export async function readGist(
   const res = await fetch(`https://api.github.com/gists/${gistId}`, {
     headers: gistHeaders(token),
   });
+  if (res.status === 404) throw new GistNotFoundError();
   if (!res.ok) {
     throw new Error(`Could not read gist (${res.status}).`);
   }
@@ -157,16 +169,39 @@ export async function findGistByName(
   return match ? match.id : null;
 }
 
+// Re-resolve the linked gist by searching the user's gists for the profile's
+// description prefix. Used as a fallback when the stored gistId 404's because
+// the gist was deleted/recreated on another device. Updates the local profile
+// when a match is found so subsequent calls hit it directly.
+async function relinkGistId(profile: Profile): Promise<Profile> {
+  const found = await findGistByName(profile.token, profile.name);
+  if (!found) {
+    throw new Error(
+      `The linked gist no longer exists on GitHub and no gist named "${profile.name}" was found on this account. ` +
+        `Re-link the profile in Settings → Sync (or push a fresh one from a device that still has its data).`,
+    );
+  }
+  const updated: Profile = { ...profile, gistId: found };
+  setProfile(updated);
+  return updated;
+}
+
 export async function pushToCloud(): Promise<number> {
-  const profile = getProfile();
+  let profile = getProfile();
   if (!profile) throw new Error("No profile linked on this device.");
   const backup = await exportAll();
-  const res = await postJson(
-    `https://api.github.com/gists/${profile.gistId}`,
-    "PATCH",
-    profile.token,
-    { files: { [GIST_FILE]: { content: JSON.stringify(backup) } } },
-  );
+  const send = (p: Profile) =>
+    postJson(
+      `https://api.github.com/gists/${p.gistId}`,
+      "PATCH",
+      p.token,
+      { files: { [GIST_FILE]: { content: JSON.stringify(backup) } } },
+    );
+  let res = await send(profile);
+  if (res.status === 404) {
+    profile = await relinkGistId(profile);
+    res = await send(profile);
+  }
   if (!res.ok) {
     throw new Error(`Push failed (${res.status}). ${await res.text()}`);
   }
@@ -178,13 +213,20 @@ export async function pushToCloud(): Promise<number> {
 }
 
 export async function pullFromCloud(): Promise<number> {
-  const profile = getProfile();
+  let profile = getProfile();
   if (!profile) throw new Error("No profile linked on this device.");
-  const { updatedAt, backup } = await readGist(profile.token, profile.gistId);
-  await importAll(backup);
-  setProfile({ ...profile, lastSyncedAt: updatedAt });
+  let read;
+  try {
+    read = await readGist(profile.token, profile.gistId);
+  } catch (err) {
+    if (!(err instanceof GistNotFoundError)) throw err;
+    profile = await relinkGistId(profile);
+    read = await readGist(profile.token, profile.gistId);
+  }
+  await importAll(read.backup);
+  setProfile({ ...profile, lastSyncedAt: read.updatedAt });
   clearLocalChange();
-  return updatedAt;
+  return read.updatedAt;
 }
 
 // Delete the linked gist on GitHub and create a fresh one with the current
@@ -249,10 +291,18 @@ async function backupHash(b: Backup): Promise<string> {
 //                                        otherwise true conflict
 //   - nothing changed                -> ok
 export async function syncOnStart(): Promise<SyncResult> {
-  const profile = getProfile();
+  let profile = getProfile();
   if (!profile) return { status: "skip" };
   try {
-    const { updatedAt, backup } = await readGist(profile.token, profile.gistId);
+    let read;
+    try {
+      read = await readGist(profile.token, profile.gistId);
+    } catch (err) {
+      if (!(err instanceof GistNotFoundError)) throw err;
+      profile = await relinkGistId(profile);
+      read = await readGist(profile.token, profile.gistId);
+    }
+    const { updatedAt, backup } = read;
     const localChange = getLocalChange();
     const remoteNewer = updatedAt > profile.lastSyncedAt;
     const localDirty = localChange > 0 && localChange > profile.lastSyncedAt;
