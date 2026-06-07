@@ -517,13 +517,13 @@ function WeightTrace({
             <th title="The opponent's move in this line at this ply">
               Opp. SAN
             </th>
-            <th title="ok = a real response; no-cache = not fetched; no-data-fetched-empty = Lichess returned 0 games; san-not-in-counts = the move isn't in the top 50 master replies for this position">
+            <th title="ok = a real response; no-cache = not fetched; no-data-fetched-empty = explorer returned 0 games; san-not-in-counts = the move isn't in the top 50 explorer replies for this position">
               Status
             </th>
-            <th title="How many master games played this exact move from this position">
+            <th title={`How many ${srcLabel} games played this exact move from this position`}>
               Count
             </th>
-            <th title="Total master games reaching this position (used as denominator)">
+            <th title={`Total ${srcLabel} games reaching this position (used as denominator)`}>
               Total
             </th>
             <th title="Count / Total — probability of this move given the position">
@@ -570,10 +570,13 @@ function WeightTrace({
       )}
       {last.status === "no-cache" && !running && (
         <p className="muted small">
-          That position isn't in the local masters cache (last refresh, or
+          That position isn't in the local {srcLabel} cache (cleared, or
           never fetched). The stored weight {weight !== undefined ? `(${weight.toFixed(4)}%) ` : ""}
-          is the value from an earlier compute. Use Settings → Sync accounts
-          → "Refresh GM weights" to re-pull.
+          is the value from an earlier compute. Use Settings →{" "}
+          {source === "gm"
+            ? '"Refresh GM weights"'
+            : '"Refresh Lichess weights"'}{" "}
+          to re-pull.
         </p>
       )}
     </div>

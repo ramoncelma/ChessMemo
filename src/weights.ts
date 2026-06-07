@@ -452,7 +452,13 @@ function getLichessSettings(): LichessSettings {
     const speedsObj = (s.lichessSpeeds ?? {}) as Record<string, boolean>;
     const ratingsObj = (s.lichessRatings ?? {}) as Record<string, boolean>;
     return {
-      speeds: Object.keys(speedsObj).filter((k) => speedsObj[k]),
+      // Sort BOTH speeds and ratings so the resulting filter signature is
+      // stable regardless of which order React's object spread happened to
+      // store the keys in. Without this, toggling a checkbox and toggling
+      // it back produces a different sig and the cache appears empty.
+      speeds: Object.keys(speedsObj)
+        .filter((k) => speedsObj[k])
+        .sort(),
       ratings: Object.keys(ratingsObj)
         .filter((k) => ratingsObj[k])
         .map((k) => Number(k))
