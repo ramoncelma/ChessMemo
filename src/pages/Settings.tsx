@@ -613,15 +613,19 @@ export function Settings({
                   className="text-input"
                   style={{ width: 90 }}
                   type="number"
-                  min={1500}
-                  max={2100}
+                  min={1900}
+                  max={new Date().getFullYear()}
                   placeholder="any"
                   value={settings.mastersSinceYear ?? ""}
                   onChange={async (e) => {
                     const v = e.target.value.trim();
-                    const n = v === "" ? null : Number(v);
-                    if (n !== null && (!Number.isFinite(n) || n < 1500 || n > 2100)) return;
-                    setMastersSinceYear(n);
+                    if (v === "") {
+                      setMastersSinceYear(null);
+                    } else {
+                      const n = Number(v);
+                      if (!Number.isFinite(n)) return;
+                      setMastersSinceYear(n);
+                    }
                     await clearMastersCache();
                     clearRanThisSession();
                     resetWeightsVersions();
@@ -634,15 +638,19 @@ export function Settings({
                   className="text-input"
                   style={{ width: 90 }}
                   type="number"
-                  min={1500}
-                  max={2100}
+                  min={1900}
+                  max={new Date().getFullYear()}
                   placeholder="any"
                   value={settings.mastersUntilYear ?? ""}
                   onChange={async (e) => {
                     const v = e.target.value.trim();
-                    const n = v === "" ? null : Number(v);
-                    if (n !== null && (!Number.isFinite(n) || n < 1500 || n > 2100)) return;
-                    setMastersUntilYear(n);
+                    if (v === "") {
+                      setMastersUntilYear(null);
+                    } else {
+                      const n = Number(v);
+                      if (!Number.isFinite(n)) return;
+                      setMastersUntilYear(n);
+                    }
                     await clearMastersCache();
                     clearRanThisSession();
                     resetWeightsVersions();
@@ -701,13 +709,17 @@ export function Settings({
                   style={{ width: 90 }}
                   type="number"
                   min={2010}
-                  max={2100}
+                  max={new Date().getFullYear()}
                   placeholder="any"
                   value={settings.lichessSinceYear ?? ""}
                   onChange={(e) => {
                     const v = e.target.value.trim();
-                    const n = v === "" ? null : Number(v);
-                    if (n !== null && (!Number.isFinite(n) || n < 2010 || n > 2100)) return;
+                    if (v === "") {
+                      setLichessSinceYear(null);
+                      return;
+                    }
+                    const n = Number(v);
+                    if (!Number.isFinite(n)) return;
                     setLichessSinceYear(n);
                   }}
                 />
@@ -719,13 +731,17 @@ export function Settings({
                   style={{ width: 90 }}
                   type="number"
                   min={2010}
-                  max={2100}
+                  max={new Date().getFullYear()}
                   placeholder="any"
                   value={settings.lichessUntilYear ?? ""}
                   onChange={(e) => {
                     const v = e.target.value.trim();
-                    const n = v === "" ? null : Number(v);
-                    if (n !== null && (!Number.isFinite(n) || n < 2010 || n > 2100)) return;
+                    if (v === "") {
+                      setLichessUntilYear(null);
+                      return;
+                    }
+                    const n = Number(v);
+                    if (!Number.isFinite(n)) return;
                     setLichessUntilYear(n);
                   }}
                 />
