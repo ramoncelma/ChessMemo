@@ -158,7 +158,6 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
     setPositionMissResetsLine,
     setLang,
     setLichessUser,
-    setLichessToken,
     setChesscomUser,
     setImportSince,
     setSpeed,
@@ -320,7 +319,6 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
               setPositionMissResetsLine={setPositionMissResetsLine}
               setLang={setLang}
               setLichessUser={setLichessUser}
-              setLichessToken={setLichessToken}
               setChesscomUser={setChesscomUser}
               setImportSince={setImportSince}
               setSpeed={setSpeed}

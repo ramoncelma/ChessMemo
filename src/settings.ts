@@ -56,10 +56,6 @@ export interface Settings {
   positionMissResetsLine: boolean;
   lang: Lang;
   lichessUser: string;
-  lichessToken: string; // Optional Lichess personal token. The masters
-                         // opening explorer started returning 401 to anonymous
-                         // requests in some regions; sending a token bypasses
-                         // that. Token needs no scopes — read-only is fine.
   chesscomUser: string;
   importSince: string; // YYYY-MM-DD
   speeds: Record<Speed, boolean>;
@@ -84,7 +80,6 @@ const DEFAULTS: Settings = {
   positionMissResetsLine: false,
   lang: "en",
   lichessUser: "",
-  lichessToken: "",
   chesscomUser: "",
   importSince: "",
   speeds: {
@@ -106,12 +101,51 @@ const DEFAULTS: Settings = {
   maxMemorizationDepth: 30,
 };
 const KEY = "chessmemo.settings";
+const LICHESS_TOKEN_KEY = "chessmemo.lichessToken";
+
+export function getLichessToken(): string {
+  try {
+    return localStorage.getItem(LICHESS_TOKEN_KEY) ?? "";
+  } catch {
+    return "";
+  }
+}
+
+export function setLichessToken(token: string) {
+  try {
+    if (token) localStorage.setItem(LICHESS_TOKEN_KEY, token);
+    else localStorage.removeItem(LICHESS_TOKEN_KEY);
+  } catch {
+    // ignore
+  }
+}
 
 function read(): Settings {
+  // One-shot migration: previous builds kept the Lichess token inside
+  // chessmemo.settings, which is part of the gist sync payload. The token
+  // is now stored under a separate, never-synced key. Anything we find
+  // under the old name is moved over and removed from settings before we
+  // ever return — so no subsequent push can carry it.
   try {
     const raw = localStorage.getItem(KEY);
     if (raw) {
-      const merged = { ...DEFAULTS, ...JSON.parse(raw) };
+      const parsed = JSON.parse(raw) as Record<string, unknown>;
+      if (typeof parsed.lichessToken === "string" && parsed.lichessToken) {
+        try {
+          if (!localStorage.getItem(LICHESS_TOKEN_KEY)) {
+            localStorage.setItem(LICHESS_TOKEN_KEY, parsed.lichessToken);
+          }
+        } catch {
+          // ignore
+        }
+        delete parsed.lichessToken;
+        try {
+          localStorage.setItem(KEY, JSON.stringify(parsed));
+        } catch {
+          // ignore
+        }
+      }
+      const merged = { ...DEFAULTS, ...parsed } as Settings;
       setVacationStart(merged.vacationStartedAt ?? null);
       return merged;
     }
@@ -148,8 +182,6 @@ export function useSettings() {
     setLang: (lang: Lang) => setSettings((s) => ({ ...s, lang })),
     setLichessUser: (lichessUser: string) =>
       setSettings((s) => ({ ...s, lichessUser })),
-    setLichessToken: (lichessToken: string) =>
-      setSettings((s) => ({ ...s, lichessToken })),
     setChesscomUser: (chesscomUser: string) =>
       setSettings((s) => ({ ...s, chesscomUser })),
     setImportSince: (importSince: string) =>

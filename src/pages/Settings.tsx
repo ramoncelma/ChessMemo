@@ -4,6 +4,8 @@ import {
   BOARD_THEMES,
   PIECE_SETS,
   SPEEDS,
+  getLichessToken,
+  setLichessToken as writeLichessToken,
   type PieceSet,
   type Settings as SettingsType,
   type Speed,
@@ -34,7 +36,6 @@ interface Props {
   setPositionMissResetsLine: (v: boolean) => void;
   setLang: (lang: Lang) => void;
   setLichessUser: (v: string) => void;
-  setLichessToken: (v: string) => void;
   setChesscomUser: (v: string) => void;
   setImportSince: (v: string) => void;
   setSpeed: (speed: Speed, on: boolean) => void;
@@ -65,7 +66,6 @@ export function Settings({
   setPositionMissResetsLine,
   setLang,
   setLichessUser,
-  setLichessToken,
   setChesscomUser,
   setImportSince,
   setSpeed,
@@ -92,6 +92,10 @@ export function Settings({
   const [profileBusy, setProfileBusy] = useState<string | null>(null);
   const [profileMsg, setProfileMsg] = useState<string | null>(null);
   const [profileErr, setProfileErr] = useState<string | null>(null);
+  // Lichess token lives in its own localStorage key so the gist sync can
+  // never touch it. UI is a controlled input whose only side effect is
+  // writing to that key.
+  const [lichessToken, setLichessTokenState] = useState(() => getLichessToken());
 
   function refreshProfile() {
     setProfileState(getProfile());
@@ -545,8 +549,12 @@ export function Settings({
               className="text-input"
               type="password"
               placeholder="lip_…"
-              value={settings.lichessToken}
-              onChange={(e) => setLichessToken(e.target.value)}
+              value={lichessToken}
+              onChange={(e) => {
+                const v = e.target.value;
+                setLichessTokenState(v);
+                writeLichessToken(v.trim());
+              }}
             />
             <div className="row" style={{ marginTop: 8 }}>
               <button

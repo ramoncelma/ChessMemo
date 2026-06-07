@@ -121,15 +121,12 @@ export interface FetchStats {
 
 let logged401 = false;
 
-// Lichess personal token, read from the same localStorage the app already
-// uses. The explorer started 401'ing anonymous requests from some regions /
-// flagged IPs; sending a token bypasses that.
+// Lichess personal token, kept under its own localStorage key so that no
+// settings export / gist sync can ever pick it up. The explorer 401's
+// anonymous requests from some regions; sending a token bypasses that.
 function getLichessToken(): string | null {
   try {
-    const raw = localStorage.getItem("chessmemo.settings");
-    if (!raw) return null;
-    const s = JSON.parse(raw) as { lichessToken?: string };
-    const t = (s.lichessToken ?? "").trim();
+    const t = (localStorage.getItem("chessmemo.lichessToken") ?? "").trim();
     return t.length ? t : null;
   } catch {
     return null;
