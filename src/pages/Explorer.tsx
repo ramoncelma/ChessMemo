@@ -125,6 +125,47 @@ export function Explorer({ studies, settings, initial, onInitialApplied }: Props
     return set;
   }, [study, fen]);
 
+  // Repertoire lines whose prefix matches the path the user has played on
+  // the board. We compare by SAN at each ply (cheaper than chasing FENs).
+  // The remaining SANs of each matching line are the "continuation" the
+  // repertoire suggests from this point onwards.
+  const continuations = useMemo(() => {
+    if (!study) return [] as {
+      lineId: string;
+      chapter: string;
+      remaining: string[];
+    }[];
+    const prefix = path.map((p) => normSan(p.san));
+    const out: { lineId: string; chapter: string; remaining: string[] }[] = [];
+    for (const line of study.lines) {
+      if (line.moves.length <= prefix.length) continue;
+      let matches = true;
+      for (let i = 0; i < prefix.length; i++) {
+        if (normSan(line.moves[i].san) !== prefix[i]) {
+          matches = false;
+          break;
+        }
+      }
+      if (!matches) continue;
+      out.push({
+        lineId: line.id,
+        chapter: study.chapters[line.chapterIdx]?.name ?? "",
+        remaining: line.moves.slice(prefix.length).map((m) => m.san),
+      });
+    }
+    // Show shorter continuations first — usually the more common mainline
+    // variations and easier to scan. Tie-break alphabetically on the first
+    // diverging SAN so the order is stable.
+    out.sort((a, b) => {
+      if (a.remaining.length !== b.remaining.length)
+        return a.remaining.length - b.remaining.length;
+      const ar = a.remaining[0] ?? "";
+      const br = b.remaining[0] ?? "";
+      return ar < br ? -1 : ar > br ? 1 : 0;
+    });
+    return out;
+  }, [study, path]);
+
   return (
     <div className="page explorer-page">
       <div className="row" style={{ gap: 12, flexWrap: "wrap" }}>
@@ -179,6 +220,41 @@ export function Explorer({ studies, settings, initial, onInitialApplied }: Props
             sansForAnalyse={sans}
             orientation={orientation}
           />
+          {study && (
+            <Continuations
+              study={study.name}
+              prefixLen={path.length}
+              continuations={continuations}
+              onPlayLine={(remaining) => {
+                // Walk the remaining SANs onto the board, one move at a
+                // time, so we keep the per-move fenBefore/fenAfter trail
+                // that powers Back / Reset.
+                setPath((prev) => {
+                  const ch = new Chess(
+                    prev.length > 0
+                      ? prev[prev.length - 1].fenAfter
+                      : START_FEN,
+                  );
+                  const next = [...prev];
+                  for (const san of remaining) {
+                    const before = ch.fen();
+                    try {
+                      const m = ch.move(san);
+                      if (!m) break;
+                      next.push({
+                        san: m.san,
+                        fenBefore: before,
+                        fenAfter: ch.fen(),
+                      });
+                    } catch {
+                      break;
+                    }
+                  }
+                  return next;
+                });
+              }}
+            />
+          )}
         </div>
       </div>
     </div>
@@ -260,14 +336,22 @@ function MoveBrowser({
         inRepertoire: coveredSans.has(san),
       });
     }
-    // Rank by GM popularity, fall back to Lichess popularity.
+    // Rank by combined popularity. We deliberately do NOT bubble
+    // in-repertoire moves to the top — the user still wants to see how
+    // popular each move is at the current position. The "in rep." column
+    // marks the covered moves with a star instead.
     list.sort((a, b) => {
-      if (a.inRepertoire !== b.inRepertoire) return a.inRepertoire ? -1 : 1;
       const ag = a.gmCount + a.liCount;
       const bg = b.gmCount + b.liCount;
       return bg - ag;
     });
-    return list;
+    // Always include every covered move regardless of popularity (the user
+    // wants their repertoire to be visible), then fill the rest with the
+    // most-played moves until we hit the 10-row cap.
+    const MAX_ROWS = 10;
+    const covered = list.filter((r) => r.inRepertoire);
+    const others = list.filter((r) => !r.inRepertoire);
+    return [...covered, ...others].slice(0, Math.max(MAX_ROWS, covered.length));
   }, [gm, li, coveredSans]);
 
   const gmTotal = gm && gm !== "loading" ? gm.total : 0;
@@ -302,19 +386,29 @@ function MoveBrowser({
         <table className="explorer-table">
           <thead>
             <tr>
+              <th title="Whether the selected repertoire covers this move">
+                In rep.
+              </th>
               <th>Move</th>
-              <th title="Games at this position from the GM (Masters) explorer">GM games</th>
+              <th title="Games at this position from the GM (Masters) explorer">
+                GM games
+              </th>
               <th>GM W/D/B</th>
-              <th title="Games at this position from the Lichess online explorer under your filters">Li games</th>
+              <th title="Games at this position from the Lichess online explorer under your filters">
+                Li games
+              </th>
               <th>Li W/D/B</th>
-              <th title="Whether the selected repertoire covers this move">In rep.</th>
             </tr>
           </thead>
           <tbody>
             {rows.map((r) => (
               <tr key={r.san} className={r.inRepertoire ? "in-rep" : ""}>
+                <td className="rep-cell">{r.inRepertoire ? "✓" : ""}</td>
                 <td>
-                  <button className="link" onClick={() => onPlay(r.san)}>
+                  <button
+                    className="link explorer-move-btn"
+                    onClick={() => onPlay(r.san)}
+                  >
                     {r.san}
                   </button>
                 </td>
@@ -322,7 +416,6 @@ function MoveBrowser({
                 <td>{wdbCell(r.gmWdb)}</td>
                 <td>{r.liCount > 0 ? r.liCount.toLocaleString() : "—"}</td>
                 <td>{wdbCell(r.liWdb)}</td>
-                <td>{r.inRepertoire ? "✓" : ""}</td>
               </tr>
             ))}
           </tbody>
@@ -345,6 +438,61 @@ function wdbCell(wdb?: MoveWdb): string {
   const d = Math.round((100 * wdb.draws) / total);
   const b = 100 - w - d;
   return `${w}/${d}/${b}`;
+}
+
+interface ContinuationsProps {
+  study: string;
+  prefixLen: number;
+  continuations: { lineId: string; chapter: string; remaining: string[] }[];
+  onPlayLine: (remaining: string[]) => void;
+}
+
+// Repertoire lines whose first `prefixLen` SANs match the moves played on
+// the Explorer board. Each row lists the moves that follow, so the user
+// can see at a glance which prep lines they're still inside and jump to
+// the end of any one of them with a single click.
+function Continuations({
+  study,
+  prefixLen,
+  continuations,
+  onPlayLine,
+}: ContinuationsProps) {
+  return (
+    <div className="explorer-continuations">
+      <h3 className="section-label">
+        Repertoire continuations
+        <span className="muted small"> · {study}</span>
+      </h3>
+      {continuations.length === 0 ? (
+        <p className="muted small">
+          {prefixLen === 0
+            ? "Play a move to see which repertoire lines start with it."
+            : "No repertoire line continues from this position."}
+        </p>
+      ) : (
+        <ul className="continuation-list">
+          {continuations.map((c, i) => (
+            <li key={`${c.lineId}-${i}`}>
+              <button
+                className="link continuation-btn"
+                title={`Play this line out — ${c.chapter}`}
+                onClick={() => onPlayLine(c.remaining)}
+              >
+                <span className="continuation-sans">
+                  {c.remaining.join(" ")}
+                </span>
+                {c.chapter && (
+                  <span className="muted small continuation-chap">
+                    {" "}· {c.chapter}
+                  </span>
+                )}
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 function EvalCell({

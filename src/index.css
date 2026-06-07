@@ -1415,9 +1415,46 @@ button.link.danger {
 .explorer-table tr.in-rep td {
   background: rgba(91, 157, 255, 0.08);
 }
-.explorer-table tr.in-rep td:first-child::before {
-  content: "★ ";
+.explorer-table td.rep-cell {
+  text-align: center;
+  font-weight: 700;
   color: rgba(91, 157, 255, 0.9);
+  width: 56px;
+}
+.explorer-move-btn {
+  font-weight: 700;
+}
+
+.explorer-continuations {
+  margin-top: 14px;
+}
+.continuation-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 280px;
+  overflow-y: auto;
+}
+.continuation-btn {
+  text-align: left;
+  width: 100%;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+.continuation-btn:hover {
+  background: rgba(91, 157, 255, 0.08);
+}
+.continuation-sans {
+  font-weight: 600;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.85rem;
+  word-break: break-word;
+}
+.continuation-chap {
+  white-space: nowrap;
 }
 
 .line-row.expanded {
