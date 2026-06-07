@@ -10,6 +10,7 @@ import {
   type WeightStatus,
 } from "../weightsScheduler";
 import {
+  ensureLichessCacheLoaded,
   ensureMastersCacheLoaded,
   traceLineWeight,
   type WeightTraceStep,
@@ -66,7 +67,9 @@ export function Practice({
   const t = useT();
   const [selId, setSelId] = useState<string | null>(null);
   const [chapterIdx, setChapterIdx] = useState<number | null>(null);
-  const [traceLineId, setTraceLineId] = useState<string | null>(null);
+  const [trace, setTrace] = useState<
+    { lineId: string; source: "gm" | "lichess" } | null
+  >(null);
   const [, forceRender] = useState(0);
   useEffect(() => subscribeWeightStatus(() => forceRender((n) => n + 1)), []);
 
@@ -301,7 +304,7 @@ export function Practice({
               .slice(divergeAt)
               .map((m) => m.san)
               .join(" ");
-            const showTrace = traceLineId === l.id;
+            const showTrace = trace?.lineId === l.id;
             return (
               <li
                 key={l.id}
@@ -319,7 +322,14 @@ export function Practice({
                     weightLichess={l.weightLichess}
                     gmWdb={l.gmWdb}
                     lichessWdb={l.lichessWdb}
-                    onClick={() => setTraceLineId(showTrace ? null : l.id)}
+                    activeSource={showTrace ? trace?.source ?? null : null}
+                    onClick={(source) =>
+                      setTrace(
+                        showTrace && trace?.source === source
+                          ? null
+                          : { lineId: l.id, source },
+                      )
+                    }
                   />
                   <LevelBadge level={l.sched.level} />
                   {!l.paused && (
@@ -333,11 +343,14 @@ export function Practice({
                     </button>
                   )}
                 </div>
-                {showTrace && (
+                {showTrace && trace && (
                   <WeightTrace
                     study={selStudy}
                     lineId={l.id}
-                    weight={l.weight}
+                    source={trace.source}
+                    weight={
+                      trace.source === "gm" ? l.weight : l.weightLichess
+                    }
                     running={statusFor(selStudy.id)?.running ?? false}
                   />
                 )}
@@ -447,32 +460,34 @@ export function Practice({
 function WeightTrace({
   study,
   lineId,
+  source,
   weight,
   running,
 }: {
   study: Study;
   lineId: string;
+  source: "gm" | "lichess";
   weight: number | undefined;
   running: boolean;
 }) {
   const [steps, setSteps] = useState<WeightTraceStep[] | null>(null);
   useEffect(() => {
     let cancelled = false;
-    void ensureMastersCacheLoaded().then(() => {
-      if (!cancelled) setSteps(traceLineWeight(study, lineId));
+    const load =
+      source === "gm" ? ensureMastersCacheLoaded() : ensureLichessCacheLoaded();
+    void load.then(() => {
+      if (!cancelled) setSteps(traceLineWeight(study, lineId, source));
     });
     return () => {
       cancelled = true;
     };
-    // We recompute whenever the study reference or line id changes; the live
-    // cache is read at call time so re-runs after a refetch show up the next
-    // time the user reopens the inspector.
-  }, [study, lineId, running]);
+  }, [study, lineId, running, source]);
 
+  const srcLabel = source === "gm" ? "GM (Masters)" : "Lichess online";
   if (steps === null) {
     return (
       <div className="weight-trace">
-        <p className="muted small">Loading cached masters data…</p>
+        <p className="muted small">Loading cached {srcLabel} data…</p>
       </div>
     );
   }
@@ -489,7 +504,8 @@ function WeightTrace({
   return (
     <div className="weight-trace">
       <div className="muted small">
-        Stored weight: {weight === undefined ? "—" : `${weight.toFixed(4)}%`}
+        <strong>{srcLabel}</strong> · stored weight:{" "}
+        {weight === undefined ? "—" : `${weight.toFixed(4)}%`}
         {running && <> · recomputing now — reopen to refresh</>}
       </div>
       <table className="weight-trace-table">

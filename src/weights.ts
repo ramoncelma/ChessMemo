@@ -366,16 +366,21 @@ export interface WeightTraceStep {
 export function traceLineWeight(
   study: Study,
   lineId: string,
+  source: "gm" | "lichess" = "gm",
 ): WeightTraceStep[] {
   const line = study.lines.find((l) => l.id === lineId);
   if (!line) return [];
   const opponentSide: "w" | "b" = study.orientation === "white" ? "b" : "w";
   const steps: WeightTraceStep[] = [];
+  const cacheRef: Map<string, MastersData | null> =
+    source === "gm" ? cache : lichessCache;
+  const sig = source === "lichess" ? lichessFiltersSignature() : null;
+  const keyFor = (fen: string) => (sig === null ? fen : `${sig}::${fen}`);
   let p = 1;
   for (let i = 0; i < line.moves.length; i++) {
     const m = line.moves[i];
     if (m.color !== opponentSide) continue;
-    const data = cache.get(m.fenBefore);
+    const data = cacheRef.get(keyFor(m.fenBefore));
     if (!data) {
       steps.push({
         san: m.san,

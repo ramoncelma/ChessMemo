@@ -24,45 +24,85 @@ interface Props {
   weightLichess?: number;
   gmWdb?: Wdb;
   lichessWdb?: Wdb;
-  onClick?: () => void;
+  // Called with the source whose pill was clicked. When omitted, pills
+  // render as non-interactive spans (e.g. the Read line list).
+  onClick?: (source: "gm" | "lichess") => void;
+  // Which pill (if any) is currently "active" — only used to style the
+  // button so the inspector below is visibly tied to the right source.
+  activeSource?: "gm" | "lichess" | null;
 }
 
 // Two compact tags side-by-side: GM probability + Lichess probability,
 // each with the leaf W/D/B percentages underneath. Renders nothing if
-// neither weight has been computed yet (e.g. fresh chapter before the
-// background scheduler has reached it).
+// neither weight has been computed yet.
 export function WeightTags({
   weight,
   weightLichess,
   gmWdb,
   lichessWdb,
   onClick,
+  activeSource,
 }: Props) {
   if (weight === undefined && weightLichess === undefined) return null;
-  const Wrapper: keyof JSX.IntrinsicElements = onClick ? "button" : "span";
-  const wrapperProps = onClick
-    ? { onClick, className: "weight-tags weight-tags-btn", title: "Click for details" }
-    : { className: "weight-tags" };
   const gmTxt = fmtWdb(gmWdb);
   const liTxt = fmtWdb(lichessWdb);
   return (
-    <Wrapper {...wrapperProps}>
-      <span className="weight-tag-pair">
-        <span className="weight-src">GM</span>
-        <span>{fmtPct(weight)}</span>
-        {weight !== undefined && weight > 0 && (
-          <span className="muted small"> · {oneIn(weight)}</span>
-        )}
-        {gmTxt && <span className="wdb muted small"> · {gmTxt}</span>}
-      </span>
-      <span className="weight-tag-pair">
-        <span className="weight-src">Li</span>
-        <span>{fmtPct(weightLichess)}</span>
-        {weightLichess !== undefined && weightLichess > 0 && (
-          <span className="muted small"> · {oneIn(weightLichess)}</span>
-        )}
-        {liTxt && <span className="wdb muted small"> · {liTxt}</span>}
-      </span>
-    </Wrapper>
+    <span className="weight-tags">
+      <Pair
+        label="GM"
+        value={fmtPct(weight)}
+        weight={weight}
+        wdb={gmTxt}
+        onClick={onClick ? () => onClick("gm") : undefined}
+        active={activeSource === "gm"}
+      />
+      <Pair
+        label="Li"
+        value={fmtPct(weightLichess)}
+        weight={weightLichess}
+        wdb={liTxt}
+        onClick={onClick ? () => onClick("lichess") : undefined}
+        active={activeSource === "lichess"}
+      />
+    </span>
   );
+}
+
+function Pair({
+  label,
+  value,
+  weight,
+  wdb,
+  onClick,
+  active,
+}: {
+  label: string;
+  value: string;
+  weight?: number;
+  wdb: string;
+  onClick?: () => void;
+  active: boolean;
+}) {
+  const body = (
+    <>
+      <span className="weight-src">{label}</span>
+      <span>{value}</span>
+      {weight !== undefined && weight > 0 && (
+        <span className="muted small"> · {oneIn(weight)}</span>
+      )}
+      {wdb && <span className="wdb muted small"> · {wdb}</span>}
+    </>
+  );
+  if (onClick) {
+    return (
+      <button
+        className={`weight-tag-pair weight-tag-pair-btn${active ? " active" : ""}`}
+        title="Click for the per-move breakdown"
+        onClick={onClick}
+      >
+        {body}
+      </button>
+    );
+  }
+  return <span className="weight-tag-pair">{body}</span>;
 }

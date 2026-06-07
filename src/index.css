@@ -1297,17 +1297,6 @@ button.link.danger {
   align-items: flex-end;
   line-height: 1.1;
 }
-.weight-tags-btn {
-  border: none;
-  background: transparent;
-  padding: 0;
-  font: inherit;
-  cursor: pointer;
-  color: inherit;
-}
-.weight-tags-btn:hover .weight-src {
-  text-decoration: underline;
-}
 .weight-tag-pair {
   display: inline-flex;
   align-items: baseline;
@@ -1317,6 +1306,19 @@ button.link.danger {
   border-radius: 99px;
   padding: 1px 8px;
   white-space: nowrap;
+}
+.weight-tag-pair-btn {
+  border: none;
+  font: inherit;
+  cursor: pointer;
+  color: inherit;
+}
+.weight-tag-pair-btn:hover .weight-src {
+  text-decoration: underline;
+}
+.weight-tag-pair-btn.active .weight-src {
+  text-decoration: underline;
+  color: var(--accent, currentColor);
 }
 .weight-src {
   font-weight: 700;
