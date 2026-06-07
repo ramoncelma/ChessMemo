@@ -561,9 +561,24 @@ export async function fetchLichess(fen: string): Promise<LichessData | null> {
     `ratings=${settings.ratings.join(",")}`,
   ];
   // /lichess (unlike /masters) expects YYYY-MM, not bare YYYY — return
-  // 400 otherwise. Use January for since, December for until.
+  // 400 otherwise. Use January for since, December for until. Clamp until
+  // to the current month so a user-typed future year never reaches the API
+  // looking suspicious.
   if (settings.since !== null) params.push(`since=${settings.since}-01`);
-  if (settings.until !== null) params.push(`until=${settings.until}-12`);
+  if (settings.until !== null) {
+    const now = new Date();
+    const curY = now.getFullYear();
+    const curM = now.getMonth() + 1;
+    let untilStr: string;
+    if (settings.until > curY) {
+      untilStr = `${curY}-${String(curM).padStart(2, "0")}`;
+    } else if (settings.until === curY) {
+      untilStr = `${curY}-${String(curM).padStart(2, "0")}`;
+    } else {
+      untilStr = `${settings.until}-12`;
+    }
+    params.push(`until=${untilStr}`);
+  }
   const url = `https://explorer.lichess.ovh/lichess?${params.join("&")}`;
 
   const r = await throttledFetch(url);
