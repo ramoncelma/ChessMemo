@@ -9,6 +9,7 @@ import { formatCountdown, summarizeTimes } from "../stats";
 import { useT } from "../i18n";
 import { LevelBadge } from "../components/LevelBadge";
 import { WeightTags } from "../components/WeightTags";
+import { EvalTag } from "../components/EvalTag";
 import { EnginePanel } from "../components/EnginePanel";
 import { ChapterGrid } from "../components/ChapterGrid";
 import { chapterDivergence } from "../divergence";
@@ -224,6 +225,14 @@ export function ReadView({
                   weightLichess={l.weightLichess}
                   gmWdb={l.gmWdb}
                   lichessWdb={l.lichessWdb}
+                />
+                <EvalTag
+                  cp={l.evalCp}
+                  mate={l.evalMate}
+                  depth={l.evalDepth}
+                  notCached={l.evalNotCached}
+                  sansForAnalyse={sans}
+                  orientation={study.orientation}
                 />
                 <LevelBadge level={l.sched.level} />
                 {!due && !l.paused && (

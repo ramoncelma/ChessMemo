@@ -19,6 +19,8 @@ import {
 import { LANGS, type Lang, useT, levelName, levelInterval } from "../i18n";
 import { download, exportAll, importAll } from "../backup";
 import { clearLichessCache, clearMastersCache } from "../weights";
+import { clearEngineCache } from "../engineCache";
+import { clearEvalRanThisSession } from "../evalScheduler";
 import { clearRanThisSession } from "../weightsScheduler";
 import {
   clearProfile,
@@ -62,6 +64,7 @@ interface Props {
   setLichessUntilYear: (n: number | null) => void;
   setWeightRankingSource: (s: WeightRankingSource) => void;
   resetWeightsVersions: () => void;
+  resetEvalsAll: () => void;
 }
 
 type Section = "appearance" | "preferences" | "sync" | "about";
@@ -99,6 +102,7 @@ export function Settings({
   setLichessUntilYear,
   setWeightRankingSource,
   resetWeightsVersions,
+  resetEvalsAll,
 }: Props) {
   const t = useT();
   const [section, setSection] = useState<Section>("appearance");
@@ -776,6 +780,38 @@ export function Settings({
               <span className="muted small">
                 Re-pulls Lichess online games for every line in every
                 repertoire under the current filters.
+              </span>
+            </div>
+          </section>
+
+          <section>
+            <h3 className="section-label">Stockfish evals</h3>
+            <p className="muted small">
+              Per-line evals come from Lichess's Cloud Eval (free,
+              CORS-enabled, no token required). One request per line; lines
+              the cloud hasn't analysed get a "not cached" tag with a link
+              that opens the position on Lichess — once it's analysed
+              there, your next refresh will pick it up.
+            </p>
+            <div className="row" style={{ marginTop: 8 }}>
+              <button
+                onClick={async () => {
+                  if (
+                    !confirm(
+                      "Clear the cached Stockfish evaluations and re-fetch every line's eval?",
+                    )
+                  )
+                    return;
+                  await clearEngineCache();
+                  clearEvalRanThisSession();
+                  resetEvalsAll();
+                }}
+              >
+                Refresh Stockfish evals
+              </button>
+              <span className="muted small">
+                Useful after you've analysed several "not cached" positions
+                on Lichess.
               </span>
             </div>
           </section>

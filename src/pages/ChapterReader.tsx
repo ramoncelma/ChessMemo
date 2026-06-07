@@ -3,6 +3,7 @@ import { Chess } from "chess.js";
 import { Board } from "../components/Board";
 import { MoveTree } from "../components/MoveTree";
 import { EnginePanel } from "../components/EnginePanel";
+import { PositionInfo } from "../components/PositionInfo";
 import { lichessAnalysisUrl } from "../lichess";
 import { arrowsFromEval, fetchEval, type EvalResult } from "../engine";
 import { parsePgn, type PgnNode } from "../pgnTree";
@@ -125,6 +126,7 @@ export function ChapterReader({
           {current?.comment && (
             <p className="read-comment">{current.comment}</p>
           )}
+          <PositionInfo fen={fen} sans={sans} orientation={study.orientation} />
           <EnginePanel evalResult={evalResult} onAnalyze={runEval} />
           <div className="read-controls">
             <button

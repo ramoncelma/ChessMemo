@@ -1327,6 +1327,47 @@ button.link.danger {
   margin-right: 2px;
 }
 
+.eval-tag {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  background: var(--surface-2);
+  color: var(--muted);
+  border-radius: 99px;
+  padding: 1px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.eval-tag-link {
+  text-decoration: none;
+}
+.eval-tag-link:hover .eval-src {
+  text-decoration: underline;
+}
+.eval-src {
+  font-weight: 700;
+  color: var(--text);
+  opacity: 0.85;
+  margin-right: 2px;
+}
+
+.position-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 8px 0;
+  padding: 8px 10px;
+  background: var(--surface-2);
+  border-radius: 8px;
+  font-size: 0.8rem;
+}
+.position-info-row {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
 .line-row.expanded {
   flex-direction: column;
   align-items: stretch;

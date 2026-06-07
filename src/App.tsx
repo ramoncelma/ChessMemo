@@ -149,6 +149,7 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
     pauseLowWeight,
     resumeAllInChapter,
     resetWeightsVersions,
+    resetEvalsAll,
   } = useStudies();
   const {
     settings,
@@ -347,6 +348,7 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
               setLichessUntilYear={setLichessUntilYear}
               setWeightRankingSource={setWeightRankingSource}
               resetWeightsVersions={resetWeightsVersions}
+              resetEvalsAll={resetEvalsAll}
             />
           )}
           {tab === "drill" && drill?.kind === "line" && (

@@ -40,6 +40,14 @@ export interface Line {
   weightLichess?: number; // 0..100 — Lichess online encounter probability
   gmWdb?: Wdb; // GM W/D/B at the leaf position
   lichessWdb?: Wdb; // Lichess W/D/B at the leaf position
+  // Stockfish (Lichess Cloud Eval) score for the leaf position. Either cp
+  // OR mate is set when known; both undefined while pending. evalNotCached
+  // sticks when Lichess returns no entry — clear it (or hit "Refresh evals")
+  // to make the scheduler retry that line's leaf.
+  evalCp?: number;
+  evalMate?: number;
+  evalDepth?: number;
+  evalNotCached?: boolean;
 }
 
 // A single PGN added to an opening. An opening can hold several.

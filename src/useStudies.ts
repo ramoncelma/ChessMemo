@@ -5,6 +5,7 @@ import { mergeTrees, parsePgn, treeToPgn } from "./pgnTree";
 import { isDue } from "./srs";
 import { nowSrs } from "./clock";
 import { scheduleWeightCompute, type WeightApplyPayload } from "./weightsScheduler";
+import { scheduleEvalCompute, type EvalApplyPayload } from "./evalScheduler";
 import { WEIGHTS_VERSION, lichessFiltersSignature } from "./weights";
 import type { Chapter, Line, Orientation, Study } from "./types";
 import type { Speed } from "./settings";
@@ -224,6 +225,51 @@ export function useStudies() {
     [],
   );
 
+  // Eval payload writer. Mirrors setLineWeights but for Stockfish data.
+  // Only mutates lines that show up in the incoming map and whose stored
+  // eval state actually differs, so the studies-effect doesn't reschedule.
+  const setLineEvals = useCallback(
+    (studyId: string, payload: EvalApplyPayload) => {
+      setStudies((prev) => {
+        const study = prev.find((s) => s.id === studyId);
+        if (!study) return prev;
+        const { evals } = payload;
+        const willChange = study.lines.some((l) => {
+          const e = evals.get(l.id);
+          if (!e) return false;
+          return (
+            e.cp !== l.evalCp ||
+            e.mate !== l.evalMate ||
+            e.depth !== l.evalDepth ||
+            !!e.notCached !== !!l.evalNotCached
+          );
+        });
+        if (!willChange) return prev;
+        const next = prev.map((s) =>
+          s.id === studyId
+            ? {
+                ...s,
+                lines: s.lines.map((l) => {
+                  const e = evals.get(l.id);
+                  if (!e) return l;
+                  return {
+                    ...l,
+                    evalCp: e.cp,
+                    evalMate: e.mate,
+                    evalDepth: e.depth,
+                    evalNotCached: e.notCached || undefined,
+                  };
+                }),
+              }
+            : s,
+        );
+        void saveStudies(next);
+        return next;
+      });
+    },
+    [],
+  );
+
   // Auto-trigger background weight computation when a study has lines that
   // don't have a computed weight yet. Once every line has a defined `weight`
   // (the result of one full compute), this stops firing — so reloads, PWA
@@ -240,8 +286,9 @@ export function useStudies() {
       );
       if (stale || sigChanged || missing)
         scheduleWeightCompute(study, setLineWeights);
+      scheduleEvalCompute(study, setLineEvals);
     }
-  }, [studies, loaded, setLineWeights]);
+  }, [studies, loaded, setLineWeights, setLineEvals]);
 
   const pauseLowWeight = useCallback(
     (
@@ -291,6 +338,29 @@ export function useStudies() {
     [studies, persist],
   );
 
+  // Strip eval fields from every line so the scheduler's hasMissing check
+  // fires again on next mount. Paired with clearEngineCache() in Settings
+  // for a clean "Refresh Stockfish evals" action.
+  const resetEvalsAll = useCallback(() => {
+    setStudies((prev) => {
+      const next = prev.map((s) => ({
+        ...s,
+        lines: s.lines.map((l) => {
+          const {
+            evalCp: _a,
+            evalMate: _b,
+            evalDepth: _c,
+            evalNotCached: _d,
+            ...rest
+          } = l;
+          return rest as typeof l;
+        }),
+      }));
+      void saveStudies(next);
+      return next;
+    });
+  }, []);
+
   const resetWeightsVersions = useCallback(() => {
     setStudies((prev) => {
       const next = prev.map((s) => {
@@ -316,6 +386,8 @@ export function useStudies() {
     setCategories,
     setPaused,
     setLineWeights,
+    setLineEvals,
+    resetEvalsAll,
     pauseLowWeight,
     resumeAllInChapter,
     persist,
