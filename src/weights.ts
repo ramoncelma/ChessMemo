@@ -10,21 +10,30 @@ export const WEIGHTS_VERSION = 8;
 // Position-level explorer data. `white/draws/black` are the per-position
 // outcome totals (used for "W36 D37 B27" displays at leaf positions);
 // `counts` is the per-move games-played count used for the encounter
-// probability product.
+// probability product; `movesWdb` is the per-move outcome breakdown that
+// the Explorer page uses to render "this move → 36% white wins". Old
+// cache entries don't have movesWdb — populated on the next refetch.
+export interface MoveWdb {
+  white: number;
+  draws: number;
+  black: number;
+}
 export interface MastersData {
   total: number;
   white: number;
   draws: number;
   black: number;
   counts: Map<string, number>;
+  movesWdb?: Map<string, MoveWdb>;
 }
 
 interface CacheValue {
   total: number;
-  white?: number; // optional for backward compat with pre-v8 entries
+  white?: number;
   draws?: number;
   black?: number;
   counts: Record<string, number>;
+  movesWdb?: Record<string, MoveWdb>;
 }
 
 // Bumped to v2: previous entries were queried with chess.js's full FEN
@@ -46,6 +55,9 @@ function loadCache(): Promise<void> {
         draws: value.draws ?? 0,
         black: value.black ?? 0,
         counts: new Map(Object.entries(value.counts)),
+        movesWdb: value.movesWdb
+          ? new Map(Object.entries(value.movesWdb))
+          : undefined,
       });
     }
   });
@@ -80,6 +92,7 @@ function flushCache() {
       draws: v.draws,
       black: v.black,
       counts: Object.fromEntries(v.counts),
+      movesWdb: v.movesWdb ? Object.fromEntries(v.movesWdb) : undefined,
     };
   }
   void set(CACHE_KEY, out);
@@ -269,11 +282,16 @@ export async function fetchMasters(fen: string): Promise<MastersData | null> {
   const black = data.black || 0;
   const total = white + draws + black;
   const counts = new Map<string, number>();
+  const movesWdb = new Map<string, MoveWdb>();
   for (const m of data.moves || []) {
-    const c = (m.white || 0) + (m.draws || 0) + (m.black || 0);
-    counts.set(normSan(m.san), c);
+    const w = m.white || 0;
+    const d = m.draws || 0;
+    const b = m.black || 0;
+    const key = normSan(m.san);
+    counts.set(key, w + d + b);
+    movesWdb.set(key, { white: w, draws: d, black: b });
   }
-  const result: MastersData = { total, white, draws, black, counts };
+  const result: MastersData = { total, white, draws, black, counts, movesWdb };
   cache.set(fen, result);
   scheduleSaveCache();
   return result;
@@ -496,6 +514,9 @@ function loadLichessCache(): Promise<void> {
           draws: value.draws ?? 0,
           black: value.black ?? 0,
           counts: new Map(Object.entries(value.counts)),
+          movesWdb: value.movesWdb
+            ? new Map(Object.entries(value.movesWdb))
+            : undefined,
         });
       }
     },
@@ -525,6 +546,7 @@ function flushLichessCache() {
       draws: v.draws,
       black: v.black,
       counts: Object.fromEntries(v.counts),
+      movesWdb: v.movesWdb ? Object.fromEntries(v.movesWdb) : undefined,
     };
   }
   void set(LICHESS_CACHE_KEY, out);
@@ -603,11 +625,16 @@ export async function fetchLichess(fen: string): Promise<LichessData | null> {
   const black = data.black || 0;
   const total = white + draws + black;
   const counts = new Map<string, number>();
+  const movesWdb = new Map<string, MoveWdb>();
   for (const m of data.moves || []) {
-    const c = (m.white || 0) + (m.draws || 0) + (m.black || 0);
-    counts.set(normSan(m.san), c);
+    const w = m.white || 0;
+    const d = m.draws || 0;
+    const b = m.black || 0;
+    const san = normSan(m.san);
+    counts.set(san, w + d + b);
+    movesWdb.set(san, { white: w, draws: d, black: b });
   }
-  const result: LichessData = { total, white, draws, black, counts };
+  const result: LichessData = { total, white, draws, black, counts, movesWdb };
   lichessCache.set(key, result);
   scheduleSaveLichessCache();
   return result;

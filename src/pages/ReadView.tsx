@@ -33,6 +33,7 @@ interface Props {
     source?: "gm" | "lichess",
   ) => void;
   resumeAllInChapter: (studyId: string, chapterIdx: number) => void;
+  onOpenInExplorer?: (studyId: string, sans: string[]) => void;
 }
 
 export function ReadView({
@@ -44,6 +45,7 @@ export function ReadView({
   setPaused,
   pauseLowWeight,
   resumeAllInChapter,
+  onOpenInExplorer,
 }: Props) {
   const t = useT();
   const useGrid = settings.chapterView === "grid" && study.chapters.length > 1;
@@ -85,6 +87,7 @@ export function ReadView({
         settings={settings}
         onBack={() => setAllLines(false)}
         onPractice={onPractice}
+        onOpenInExplorer={onOpenInExplorer}
       />
     );
   }

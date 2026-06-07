@@ -7,6 +7,7 @@ import { Repertoire } from "./pages/Repertoire";
 import { LineDrill } from "./pages/LineDrill";
 import { PositionDrill } from "./pages/PositionDrill";
 import { RealGames } from "./pages/RealGames";
+import { Explorer } from "./pages/Explorer";
 import { Settings } from "./pages/Settings";
 import { useStudies, type LineItem, type PositionItem } from "./useStudies";
 import { useSettings } from "./settings";
@@ -27,6 +28,7 @@ type Tab =
   | "read"
   | "realgames"
   | "repertoire"
+  | "explorer"
   | "settings"
   | "drill";
 
@@ -184,6 +186,13 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
   const [readingId, setReadingId] = useState<string | null>(null);
   const [readingLineId, setReadingLineId] = useState<string | null>(null);
   const [drill, setDrill] = useState<DrillState>(null);
+  // Deep-link payload set by a Read -> Explorer jump. Consumed once by
+  // Explorer's mount effect, then cleared so subsequent tab visits start
+  // from the empty board.
+  const [explorerInit, setExplorerInit] = useState<{
+    studyId: string;
+    sans: string[];
+  } | null>(null);
 
   const t = makeT(settings.lang);
 
@@ -289,6 +298,10 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
                 setPaused={setPaused}
                 pauseLowWeight={pauseLowWeight}
                 resumeAllInChapter={resumeAllInChapter}
+                onOpenInExplorer={(studyId, sans) => {
+                  setExplorerInit({ studyId, sans });
+                  setTab("explorer");
+                }}
               />
             ) : (
               <ReadList
@@ -302,6 +315,14 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
               studies={studies}
               settings={settings}
               onSettings={() => setTab("settings")}
+            />
+          )}
+          {tab === "explorer" && (
+            <Explorer
+              studies={studies}
+              settings={settings}
+              initial={explorerInit ?? undefined}
+              onInitialApplied={() => setExplorerInit(null)}
             />
           )}
           {tab === "repertoire" && (
@@ -406,6 +427,13 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
             >
               <span className="tab-ico">♞</span>
               {t("nav.realGames")}
+            </button>
+            <button
+              className={tab === "explorer" ? "active" : ""}
+              onClick={() => setTab("explorer")}
+            >
+              <span className="tab-ico">⌕</span>
+              Explorer
             </button>
             <button
               className={tab === "repertoire" ? "active" : ""}

@@ -18,6 +18,9 @@ interface Props {
   settings: Settings;
   onBack: () => void;
   onPractice: (items: LineItem[], freeze: boolean) => void;
+  // Jumps to the Explorer tab pre-loaded with this repertoire and the
+  // current path of SAN moves. Called from the "Open in Explorer" button.
+  onOpenInExplorer?: (studyId: string, sans: string[]) => void;
 }
 
 export function ChapterReader({
@@ -26,6 +29,7 @@ export function ChapterReader({
   settings,
   onBack,
   onPractice,
+  onOpenInExplorer,
 }: Props) {
   const t = useT();
   const chapter = study.chapters[chapterIdx];
@@ -108,6 +112,20 @@ export function ChapterReader({
         >
           {t("practice.chapter")} ▶
         </button>
+        {onOpenInExplorer && (
+          <button
+            className="link"
+            onClick={() =>
+              onOpenInExplorer(
+                study.id,
+                path.map((n) => n.san),
+              )
+            }
+            title="Open this position in the Explorer with this repertoire selected"
+          >
+            Explorer ⌕
+          </button>
+        )}
       </div>
 
       <div className="line-context">{chapter.name}</div>
