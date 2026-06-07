@@ -1,5 +1,5 @@
-import { computeStudyWeights, type FetchStats } from "./weights";
-import type { Study } from "./types";
+import { computeStudyWeightsDual, type FetchStats } from "./weights";
+import type { Study, Wdb } from "./types";
 
 // Weights need the Lichess masters explorer, which 401's anonymous requests
 // on some networks. Without a personal token the whole compute is skipped so
@@ -13,9 +13,17 @@ function hasLichessToken(): boolean {
   }
 }
 
+export interface WeightApplyPayload {
+  weights: Map<string, number>;
+  weightsLichess: Map<string, number>;
+  gmWdb: Map<string, Wdb>;
+  lichessWdb: Map<string, Wdb>;
+  lichessFiltersSignature: string;
+}
+
 type Apply = (
   studyId: string,
-  weights: Map<string, number>,
+  payload: WeightApplyPayload,
   completed: boolean,
 ) => void;
 
@@ -72,7 +80,9 @@ export function scheduleWeightCompute(study: Study, apply: Apply) {
   if (!hasLichessToken()) return;
   // Allow a re-run if there are new lines without weights yet (e.g. the user
   // just added a chapter); otherwise honour the one-per-session lock.
-  const hasMissing = study.lines.some((l) => l.weight === undefined);
+  const hasMissing = study.lines.some(
+    (l) => l.weight === undefined || l.weightLichess === undefined,
+  );
   if (!hasMissing && ranThisSession.has(study.id)) return;
   ranThisSession.add(study.id);
 
@@ -99,19 +109,28 @@ function runOrQueue(study: Study, apply: Apply) {
     total: 0,
     stats: { fetched: 0, cached: 0, failed: 0 },
   });
-  void computeStudyWeights(study, (done, total, stats) => {
+  void computeStudyWeightsDual(study, (done, total, stats) => {
     setStatus(study.id, { running: true, done, total, stats });
   })
     .then((result) => {
-      // Stamp the version when at least 95% of opponent FENs returned a real
-      // response. Below that we leave the stamp off and let the next mount
-      // retry the failures (the IDB cache means already-fetched FENs are
-      // free); above it, transient single-FEN failures don't keep
-      // restarting the compute on every reload.
+      // Stamp the version when at least 95% of FENs returned a real GM
+      // response. Lichess can be sparser (especially with restrictive
+      // rating bands) so we don't gate completion on it — sparse Lichess
+      // data is the user's filter choice, not a transient failure.
       const completed =
         result.totalFens === 0 ||
-        result.withData / result.totalFens >= 0.95;
-      apply(study.id, result.weights, completed);
+        result.withDataGm / result.totalFens >= 0.95;
+      apply(
+        study.id,
+        {
+          weights: result.weights,
+          weightsLichess: result.weightsLichess,
+          gmWdb: result.gmWdb,
+          lichessWdb: result.lichessWdb,
+          lichessFiltersSignature: result.lichessFiltersSignature,
+        },
+        completed,
+      );
     })
     .catch((err) => {
       console.warn("Weight compute failed:", err);

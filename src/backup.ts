@@ -13,7 +13,7 @@ const KEYS = [
 // shared cache from the gist keeps any extra positions it has fetched
 // itself, and a device that has just been linked picks up the existing
 // cache without any Lichess API access of its own.
-const MERGE_KEYS = ["chessmemo.mastersCache.v2"];
+const MERGE_KEYS = ["chessmemo.mastersCache.v2", "chessmemo.lichessCache.v1"];
 
 // Settings fields that must NEVER leave the device. The gist sync would
 // otherwise republish them and Lichess / similar services scan public gists

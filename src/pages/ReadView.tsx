@@ -8,6 +8,7 @@ import { nowSrs } from "../clock";
 import { formatCountdown, summarizeTimes } from "../stats";
 import { useT } from "../i18n";
 import { LevelBadge } from "../components/LevelBadge";
+import { WeightTags } from "../components/WeightTags";
 import { EnginePanel } from "../components/EnginePanel";
 import { ChapterGrid } from "../components/ChapterGrid";
 import { chapterDivergence } from "../divergence";
@@ -24,7 +25,12 @@ interface Props {
   onBack: () => void;
   onPractice: (items: LineItem[], freeze: boolean) => void;
   setPaused: (studyId: string, lineId: string, paused: boolean) => void;
-  pauseLowWeight: (studyId: string, chapterIdx: number, threshold: number) => void;
+  pauseLowWeight: (
+    studyId: string,
+    chapterIdx: number,
+    threshold: number,
+    source?: "gm" | "lichess",
+  ) => void;
   resumeAllInChapter: (studyId: string, chapterIdx: number) => void;
 }
 
@@ -165,10 +171,12 @@ export function ReadView({
               study.id,
               activeChapter,
               100 / settings.coverageThreshold,
+              settings.weightRankingSource,
             )
           }
         >
-          Exclude rarer than 1 in {settings.coverageThreshold}
+          Exclude rarer than 1 in {settings.coverageThreshold} (
+          {settings.weightRankingSource === "gm" ? "GM" : "Lichess"})
         </button>
         <button
           className="link small"
@@ -211,23 +219,12 @@ export function ReadView({
                 <span className="line-unique">{unique}</span>
               </button>
               <div className="line-status">
-                {l.weight !== undefined && (
-                  <span
-                    className="weight-tag"
-                    title="Frequency in master games (2010+)"
-                  >
-                    {l.weight === 0
-                      ? "rare"
-                      : l.weight < 0.1
-                        ? "<0.1%"
-                        : `${l.weight.toFixed(1)}%`}
-                    {l.weight > 0 && (
-                      <span className="muted small">
-                        {" "}· 1 in {Math.max(1, Math.round(100 / l.weight))}
-                      </span>
-                    )}
-                  </span>
-                )}
+                <WeightTags
+                  weight={l.weight}
+                  weightLichess={l.weightLichess}
+                  gmWdb={l.gmWdb}
+                  lichessWdb={l.lichessWdb}
+                />
                 <LevelBadge level={l.sched.level} />
                 {!due && !l.paused && (
                   <span className="muted small">

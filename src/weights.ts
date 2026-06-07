@@ -1,19 +1,29 @@
 import { get, set } from "idb-keyval";
-import type { Study } from "./types";
+import type { Study, Wdb } from "./types";
 
 // Bump when the algorithm changes meaningfully OR when a previous build
 // stamped studies under a flawed run. useStudies uses this to recompute
 // weights for studies stamped with an older version, even if every line
 // already has a `weight` value.
-export const WEIGHTS_VERSION = 7;
+export const WEIGHTS_VERSION = 8;
 
+// Position-level explorer data. `white/draws/black` are the per-position
+// outcome totals (used for "W36 D37 B27" displays at leaf positions);
+// `counts` is the per-move games-played count used for the encounter
+// probability product.
 export interface MastersData {
   total: number;
-  counts: Map<string, number>; // normalised SAN -> games-played count
+  white: number;
+  draws: number;
+  black: number;
+  counts: Map<string, number>;
 }
 
 interface CacheValue {
   total: number;
+  white?: number; // optional for backward compat with pre-v8 entries
+  draws?: number;
+  black?: number;
   counts: Record<string, number>;
 }
 
@@ -32,6 +42,9 @@ function loadCache(): Promise<void> {
     for (const [fen, value] of Object.entries(stored)) {
       cache.set(fen, {
         total: value.total,
+        white: value.white ?? 0,
+        draws: value.draws ?? 0,
+        black: value.black ?? 0,
         counts: new Map(Object.entries(value.counts)),
       });
     }
@@ -63,6 +76,9 @@ function flushCache() {
     if (!v) continue;
     out[fen] = {
       total: v.total,
+      white: v.white,
+      draws: v.draws,
+      black: v.black,
       counts: Object.fromEntries(v.counts),
     };
   }
@@ -223,7 +239,17 @@ function getMastersYearFilters(): { since: number | null; until: number | null }
 
 export async function fetchMasters(fen: string): Promise<MastersData | null> {
   await loadCache();
-  if (cache.has(fen)) return cache.get(fen) ?? null;
+  const cached = cache.get(fen);
+  if (cached === null) return null;
+  // Pre-v8 cache entries have total>0 but white/draws/black all zero (the
+  // load defaulted missing fields to 0). Treat those as stale and refetch
+  // so leaf W/D/B can populate without forcing a full cache wipe.
+  if (
+    cached !== undefined &&
+    !(cached.total > 0 && cached.white + cached.draws + cached.black === 0)
+  ) {
+    return cached;
+  }
   const queryFen = normalizeFenForMasters(fen);
   const { since, until } = getMastersYearFilters();
   let url = `https://explorer.lichess.ovh/masters?moves=50&fen=${encodeURIComponent(queryFen)}`;
@@ -238,13 +264,16 @@ export async function fetchMasters(fen: string): Promise<MastersData | null> {
     return null;
   }
   const data = await r.json();
-  const total = (data.white || 0) + (data.draws || 0) + (data.black || 0);
+  const white = data.white || 0;
+  const draws = data.draws || 0;
+  const black = data.black || 0;
+  const total = white + draws + black;
   const counts = new Map<string, number>();
   for (const m of data.moves || []) {
     const c = (m.white || 0) + (m.draws || 0) + (m.black || 0);
     counts.set(normSan(m.san), c);
   }
-  const result: MastersData = { total, counts };
+  const result: MastersData = { total, white, draws, black, counts };
   cache.set(fen, result);
   scheduleSaveCache();
   return result;
@@ -392,4 +421,302 @@ export function traceLineWeight(
     });
   }
   return steps;
+}
+
+// -----------------------------------------------------------------------
+// Lichess online explorer (the second probability source, alongside GM).
+// -----------------------------------------------------------------------
+
+// Lichess data shape mirrors MastersData. Stored alongside the GM cache but
+// behind a separate key — filters can change, so we don't want a GM cache
+// hit to leak into Lichess results.
+export type LichessData = MastersData;
+
+interface LichessSettings {
+  speeds: string[];
+  ratings: number[];
+  since: number | null;
+  until: number | null;
+}
+
+function getLichessSettings(): LichessSettings {
+  try {
+    const raw = localStorage.getItem("chessmemo.settings");
+    if (!raw) return { speeds: [], ratings: [], since: null, until: null };
+    const s = JSON.parse(raw) as Record<string, unknown>;
+    const speedsObj = (s.lichessSpeeds ?? {}) as Record<string, boolean>;
+    const ratingsObj = (s.lichessRatings ?? {}) as Record<string, boolean>;
+    return {
+      speeds: Object.keys(speedsObj).filter((k) => speedsObj[k]),
+      ratings: Object.keys(ratingsObj)
+        .filter((k) => ratingsObj[k])
+        .map((k) => Number(k))
+        .sort((a, b) => a - b),
+      since: typeof s.lichessSinceYear === "number" ? s.lichessSinceYear : null,
+      until: typeof s.lichessUntilYear === "number" ? s.lichessUntilYear : null,
+    };
+  } catch {
+    return { speeds: [], ratings: [], since: null, until: null };
+  }
+}
+
+// Stable string used as both cache key and stamp on Study — distinguishes
+// computed weights produced under different filter selections.
+export function lichessFiltersSignature(s?: LichessSettings): string {
+  const f = s ?? getLichessSettings();
+  return `s=${f.speeds.join(",")}|r=${f.ratings.join(",")}|y=${f.since ?? ""}-${f.until ?? ""}`;
+}
+
+const LICHESS_CACHE_KEY = "chessmemo.lichessCache.v1";
+// keyed by `${signature}::${fen}` so changing the filter selection doesn't
+// surface stale Lichess data without forcing a full cache wipe.
+const lichessCache = new Map<string, LichessData | null>();
+let lichessCacheLoaded: Promise<void> | null = null;
+
+function loadLichessCache(): Promise<void> {
+  if (lichessCacheLoaded) return lichessCacheLoaded;
+  lichessCacheLoaded = get<Record<string, CacheValue>>(LICHESS_CACHE_KEY).then(
+    (stored) => {
+      if (!stored) return;
+      for (const [key, value] of Object.entries(stored)) {
+        lichessCache.set(key, {
+          total: value.total,
+          white: value.white ?? 0,
+          draws: value.draws ?? 0,
+          black: value.black ?? 0,
+          counts: new Map(Object.entries(value.counts)),
+        });
+      }
+    },
+  );
+  return lichessCacheLoaded;
+}
+
+export function ensureLichessCacheLoaded(): Promise<void> {
+  return loadLichessCache();
+}
+
+let lichessSavePending: ReturnType<typeof setTimeout> | null = null;
+function scheduleSaveLichessCache() {
+  if (lichessSavePending) return;
+  lichessSavePending = setTimeout(() => {
+    lichessSavePending = null;
+    flushLichessCache();
+  }, 500);
+}
+function flushLichessCache() {
+  const out: Record<string, CacheValue> = {};
+  for (const [key, v] of lichessCache) {
+    if (!v) continue;
+    out[key] = {
+      total: v.total,
+      white: v.white,
+      draws: v.draws,
+      black: v.black,
+      counts: Object.fromEntries(v.counts),
+    };
+  }
+  void set(LICHESS_CACHE_KEY, out);
+}
+
+export async function clearLichessCache(): Promise<void> {
+  lichessCache.clear();
+  if (lichessSavePending) {
+    clearTimeout(lichessSavePending);
+    lichessSavePending = null;
+  }
+  lichessCacheLoaded = null;
+  await set(LICHESS_CACHE_KEY, undefined);
+}
+
+if (typeof window !== "undefined") {
+  window.addEventListener("beforeunload", () => {
+    if (lichessSavePending) {
+      clearTimeout(lichessSavePending);
+      lichessSavePending = null;
+    }
+    flushLichessCache();
+  });
+}
+
+export async function fetchLichess(fen: string): Promise<LichessData | null> {
+  await loadLichessCache();
+  const settings = getLichessSettings();
+  const sig = lichessFiltersSignature(settings);
+  const key = `${sig}::${fen}`;
+  if (lichessCache.has(key)) return lichessCache.get(key) ?? null;
+
+  // No selected speeds or ratings -> the endpoint would return nothing
+  // meaningful. Cache null so we don't keep retrying within the session.
+  if (settings.speeds.length === 0 || settings.ratings.length === 0) {
+    lichessCache.set(key, null);
+    return null;
+  }
+
+  const queryFen = normalizeFenForMasters(fen);
+  const params: string[] = [
+    `moves=50`,
+    `fen=${encodeURIComponent(queryFen)}`,
+    `speeds=${settings.speeds.join(",")}`,
+    `ratings=${settings.ratings.join(",")}`,
+  ];
+  if (settings.since !== null) params.push(`since=${settings.since}`);
+  if (settings.until !== null) params.push(`until=${settings.until}`);
+  const url = `https://explorer.lichess.ovh/lichess?${params.join("&")}`;
+
+  const r = await throttledFetch(url);
+  if (!r || !r.ok) {
+    lichessCache.set(key, null);
+    return null;
+  }
+  const data = await r.json();
+  const white = data.white || 0;
+  const draws = data.draws || 0;
+  const black = data.black || 0;
+  const total = white + draws + black;
+  const counts = new Map<string, number>();
+  for (const m of data.moves || []) {
+    const c = (m.white || 0) + (m.draws || 0) + (m.black || 0);
+    counts.set(normSan(m.san), c);
+  }
+  const result: LichessData = { total, white, draws, black, counts };
+  lichessCache.set(key, result);
+  scheduleSaveLichessCache();
+  return result;
+}
+
+// -----------------------------------------------------------------------
+// Dual-source compute. Fetches each unique FEN (opponent positions for the
+// product + leaf positions for W/D/B) from BOTH Masters and Lichess in one
+// pass, then derives the four per-line outputs.
+// -----------------------------------------------------------------------
+
+export interface DualComputeResult {
+  weights: Map<string, number>;
+  weightsLichess: Map<string, number>;
+  gmWdb: Map<string, Wdb>;
+  lichessWdb: Map<string, Wdb>;
+  totalFens: number;
+  withDataGm: number;
+  withDataLichess: number;
+  stats: FetchStats;
+  lichessFiltersSignature: string;
+}
+
+function productFor(
+  line: { moves: { color: string; san: string; fenBefore: string }[] },
+  cacheRef: Map<string, MastersData | null>,
+  opponentSide: "w" | "b",
+  keyFor: (fen: string) => string,
+): number {
+  let p = 1;
+  let anyMatched = false;
+  for (const m of line.moves) {
+    if (m.color !== opponentSide) continue;
+    const data = cacheRef.get(keyFor(m.fenBefore));
+    if (!data || data.total === 0) return 0;
+    const c = data.counts.get(normSan(m.san)) ?? 0;
+    if (c === 0) return 0;
+    p *= c / data.total;
+    anyMatched = true;
+  }
+  return anyMatched ? p * 100 : 0;
+}
+
+function wdbFromCache(
+  data: MastersData | null | undefined,
+): Wdb | undefined {
+  if (!data || data.total === 0) return undefined;
+  return { w: data.white, d: data.draws, b: data.black, total: data.total };
+}
+
+export async function computeStudyWeightsDual(
+  study: Study,
+  onProgress?: (done: number, total: number, stats: FetchStats) => void,
+): Promise<DualComputeResult> {
+  await Promise.all([loadCache(), loadLichessCache()]);
+  const opponentSide: "w" | "b" = study.orientation === "white" ? "b" : "w";
+
+  const opponentFens = new Set<string>();
+  const leafFens = new Set<string>();
+  for (const line of study.lines) {
+    for (const m of line.moves)
+      if (m.color === opponentSide) opponentFens.add(m.fenBefore);
+    if (line.moves.length > 0)
+      leafFens.add(line.moves[line.moves.length - 1].fenAfter);
+  }
+  const allFens = new Set<string>([...opponentFens, ...leafFens]);
+  const fenList = [...allFens];
+
+  const stats: FetchStats = { fetched: 0, cached: 0, failed: 0 };
+  let done = 0;
+  let withDataGm = 0;
+  let withDataLichess = 0;
+  const sig = lichessFiltersSignature();
+  const lichessKey = (fen: string) => `${sig}::${fen}`;
+  // eslint-disable-next-line no-console
+  console.log(
+    `[weights] "${study.name}" — ${fenList.length} unique FENs ` +
+      `(${opponentFens.size} opponent + ${leafFens.size} leaf), ` +
+      `fetching GM + Lichess (sig=${sig})`,
+  );
+  for (const fen of fenList) {
+    const wasCachedGm = cache.has(fen);
+    const wasCachedLi = lichessCache.has(lichessKey(fen));
+    const [gm, li] = await Promise.all([
+      fetchMasters(fen),
+      fetchLichess(fen),
+    ]);
+    if (gm !== null) {
+      withDataGm++;
+      if (wasCachedGm) stats.cached++;
+      else stats.fetched++;
+    } else {
+      stats.failed++;
+    }
+    if (li !== null) {
+      withDataLichess++;
+      if (wasCachedLi) stats.cached++;
+      else stats.fetched++;
+    } else {
+      stats.failed++;
+    }
+    done++;
+    onProgress?.(done, fenList.length, stats);
+  }
+
+  const weights = new Map<string, number>();
+  const weightsLichess = new Map<string, number>();
+  const gmWdb = new Map<string, Wdb>();
+  const lichessWdb = new Map<string, Wdb>();
+
+  for (const line of study.lines) {
+    weights.set(
+      line.id,
+      productFor(line, cache, opponentSide, (f) => f),
+    );
+    weightsLichess.set(
+      line.id,
+      productFor(line, lichessCache, opponentSide, lichessKey),
+    );
+    if (line.moves.length > 0) {
+      const leaf = line.moves[line.moves.length - 1].fenAfter;
+      const g = wdbFromCache(cache.get(leaf));
+      const l = wdbFromCache(lichessCache.get(lichessKey(leaf)));
+      if (g) gmWdb.set(line.id, g);
+      if (l) lichessWdb.set(line.id, l);
+    }
+  }
+
+  return {
+    weights,
+    weightsLichess,
+    gmWdb,
+    lichessWdb,
+    totalFens: fenList.length,
+    withDataGm,
+    withDataLichess,
+    stats,
+    lichessFiltersSignature: sig,
+  };
 }

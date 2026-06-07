@@ -4,8 +4,8 @@ import { buildLines } from "./pgn";
 import { mergeTrees, parsePgn, treeToPgn } from "./pgnTree";
 import { isDue } from "./srs";
 import { nowSrs } from "./clock";
-import { scheduleWeightCompute } from "./weightsScheduler";
-import { WEIGHTS_VERSION } from "./weights";
+import { scheduleWeightCompute, type WeightApplyPayload } from "./weightsScheduler";
+import { WEIGHTS_VERSION, lichessFiltersSignature } from "./weights";
 import type { Chapter, Line, Orientation, Study } from "./types";
 import type { Speed } from "./settings";
 
@@ -171,34 +171,49 @@ export function useStudies() {
 
   // Stable, stale-safe writer. Used both by the user-triggered API and by the
   // background weights scheduler (which fires after async fetches). Stamps
-  // the study with the current WEIGHTS_VERSION so older runs trigger a
-  // recompute on next mount.
+  // the study with the current WEIGHTS_VERSION + the current Lichess-filter
+  // signature so older runs trigger a recompute on next mount.
   const setLineWeights = useCallback(
     (
       studyId: string,
-      weights: Map<string, number>,
+      payload: WeightApplyPayload,
       completed: boolean = true,
     ) => {
       setStudies((prev) => {
         const study = prev.find((s) => s.id === studyId);
         if (!study) return prev;
+        const { weights, weightsLichess, gmWdb, lichessWdb } = payload;
         const willStamp =
-          completed && study.weightsVersion !== WEIGHTS_VERSION;
+          completed &&
+          (study.weightsVersion !== WEIGHTS_VERSION ||
+            study.lichessFiltersSignature !== payload.lichessFiltersSignature);
         const willChangeAnyWeight = study.lines.some(
-          (l) => weights.has(l.id) && weights.get(l.id) !== l.weight,
+          (l) =>
+            (weights.has(l.id) && weights.get(l.id) !== l.weight) ||
+            (weightsLichess.has(l.id) &&
+              weightsLichess.get(l.id) !== l.weightLichess),
         );
-        // Avoid touching state when there is nothing to change — otherwise
-        // the studies-watching effect would re-fire and could keep
-        // scheduling more recomputes on every iteration.
         if (!willStamp && !willChangeAnyWeight) return prev;
         const next = prev.map((s) =>
           s.id === studyId
             ? {
                 ...s,
-                ...(willStamp ? { weightsVersion: WEIGHTS_VERSION } : {}),
-                lines: s.lines.map((l) =>
-                  weights.has(l.id) ? { ...l, weight: weights.get(l.id) } : l,
-                ),
+                ...(willStamp
+                  ? {
+                      weightsVersion: WEIGHTS_VERSION,
+                      lichessFiltersSignature: payload.lichessFiltersSignature,
+                    }
+                  : {}),
+                lines: s.lines.map((l) => {
+                  const next: Line = { ...l };
+                  if (weights.has(l.id)) next.weight = weights.get(l.id);
+                  if (weightsLichess.has(l.id))
+                    next.weightLichess = weightsLichess.get(l.id);
+                  if (gmWdb.has(l.id)) next.gmWdb = gmWdb.get(l.id);
+                  if (lichessWdb.has(l.id))
+                    next.lichessWdb = lichessWdb.get(l.id);
+                  return next;
+                }),
               }
             : s,
         );
@@ -215,32 +230,41 @@ export function useStudies() {
   // auto-updates, and cloud-sync-pulls don't restart the compute from zero.
   useEffect(() => {
     if (!loaded) return;
+    const currentSig = lichessFiltersSignature();
     for (const study of studies) {
       if (study.lines.length === 0) continue;
       const stale = study.weightsVersion !== WEIGHTS_VERSION;
-      const missing = study.lines.some((l) => l.weight === undefined);
-      if (stale || missing) scheduleWeightCompute(study, setLineWeights);
+      const sigChanged = study.lichessFiltersSignature !== currentSig;
+      const missing = study.lines.some(
+        (l) => l.weight === undefined || l.weightLichess === undefined,
+      );
+      if (stale || sigChanged || missing)
+        scheduleWeightCompute(study, setLineWeights);
     }
   }, [studies, loaded, setLineWeights]);
 
   const pauseLowWeight = useCallback(
-    (studyId: string, chapterIdx: number, thresholdPct: number) => {
+    (
+      studyId: string,
+      chapterIdx: number,
+      thresholdPct: number,
+      source: "gm" | "lichess" = "gm",
+    ) => {
       persist(
         studies.map((s) =>
           s.id === studyId
             ? {
                 ...s,
-                lines: s.lines.map((l) =>
-                  // Only pause lines whose weight has been computed AND is
-                  // below the threshold. Lines without a computed weight are
-                  // left alone so the action doesn't nuke a chapter while
-                  // the background scheduler is still working.
-                  l.chapterIdx === chapterIdx &&
-                  l.weight !== undefined &&
-                  l.weight < thresholdPct
-                    ? { ...l, paused: true }
-                    : l,
-                ),
+                lines: s.lines.map((l) => {
+                  if (l.chapterIdx !== chapterIdx) return l;
+                  // Only pause lines whose chosen weight has been computed
+                  // AND is below the threshold. Lines without a computed
+                  // value are left alone so the action doesn't nuke a
+                  // chapter while the scheduler is still working.
+                  const w = source === "gm" ? l.weight : l.weightLichess;
+                  if (w === undefined || w >= thresholdPct) return l;
+                  return { ...l, paused: true };
+                }),
               }
             : s,
         ),

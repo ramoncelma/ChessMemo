@@ -23,6 +23,7 @@ import {
 import type { Settings } from "../settings";
 import { useT, levelName } from "../i18n";
 import { LevelBadge } from "../components/LevelBadge";
+import { WeightTags } from "../components/WeightTags";
 import {
   buildPositions,
   chapterLineItems,
@@ -39,7 +40,12 @@ interface Props {
   onStartLine: (items: LineItem[], freeze?: boolean) => void;
   onStartPosition: (positions: PositionItem[]) => void;
   onImport: () => void;
-  pauseLowWeight: (studyId: string, chapterIdx: number, threshold: number) => void;
+  pauseLowWeight: (
+    studyId: string,
+    chapterIdx: number,
+    threshold: number,
+    source?: "gm" | "lichess",
+  ) => void;
   resumeAllInChapter: (studyId: string, chapterIdx: number) => void;
 }
 
@@ -254,10 +260,12 @@ export function Practice({
                 selStudy.id,
                 activeChapter,
                 100 / settings.coverageThreshold,
+                settings.weightRankingSource,
               )
             }
           >
-            Exclude rarer than 1 in {settings.coverageThreshold}
+            Exclude rarer than 1 in {settings.coverageThreshold} (
+            {settings.weightRankingSource === "gm" ? "GM" : "Lichess"})
           </button>
           <button
             className="link small"
@@ -306,26 +314,13 @@ export function Practice({
                   <span className="line-unique">{unique}</span>
                 </span>
                 <div className="line-status">
-                  {l.weight !== undefined && (
-                    <button
-                      className="weight-tag weight-tag-btn"
-                      title="Click to see how this was computed"
-                      onClick={() =>
-                        setTraceLineId(showTrace ? null : l.id)
-                      }
-                    >
-                      {l.weight === 0
-                        ? "rare"
-                        : l.weight < 0.1
-                          ? "<0.1%"
-                          : `${l.weight.toFixed(1)}%`}
-                      {l.weight > 0 && (
-                        <span className="muted small">
-                          {" "}· 1 in {Math.max(1, Math.round(100 / l.weight))}
-                        </span>
-                      )}
-                    </button>
-                  )}
+                  <WeightTags
+                    weight={l.weight}
+                    weightLichess={l.weightLichess}
+                    gmWdb={l.gmWdb}
+                    lichessWdb={l.lichessWdb}
+                    onClick={() => setTraceLineId(showTrace ? null : l.id)}
+                  />
                   <LevelBadge level={l.sched.level} />
                   {!l.paused && (
                     <button

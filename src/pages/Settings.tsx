@@ -18,7 +18,7 @@ import {
 } from "../settings";
 import { LANGS, type Lang, useT, levelName, levelInterval } from "../i18n";
 import { download, exportAll, importAll } from "../backup";
-import { clearMastersCache } from "../weights";
+import { clearLichessCache, clearMastersCache } from "../weights";
 import { clearRanThisSession } from "../weightsScheduler";
 import {
   clearProfile,
@@ -677,7 +677,11 @@ export function Settings({
                     <input
                       type="checkbox"
                       checked={!!settings.lichessSpeeds[sp]}
-                      onChange={(e) => setLichessSpeed(sp, e.target.checked)}
+                      onChange={(e) => {
+                        setLichessSpeed(sp, e.target.checked);
+                        clearRanThisSession();
+                        resetWeightsVersions();
+                      }}
                     />
                     <span style={{ textTransform: "capitalize" }}>{sp}</span>
                   </label>
@@ -692,9 +696,11 @@ export function Settings({
                     <input
                       type="checkbox"
                       checked={!!settings.lichessRatings[r]}
-                      onChange={(e) =>
-                        setLichessRating(r, e.target.checked)
-                      }
+                      onChange={(e) => {
+                        setLichessRating(r, e.target.checked);
+                        clearRanThisSession();
+                        resetWeightsVersions();
+                      }}
                     />
                     <span>{lichessRatingLabel(r as LichessRating)}</span>
                   </label>
@@ -716,11 +722,13 @@ export function Settings({
                     const v = e.target.value.trim();
                     if (v === "") {
                       setLichessSinceYear(null);
-                      return;
+                    } else {
+                      const n = Number(v);
+                      if (!Number.isFinite(n)) return;
+                      setLichessSinceYear(n);
                     }
-                    const n = Number(v);
-                    if (!Number.isFinite(n)) return;
-                    setLichessSinceYear(n);
+                    clearRanThisSession();
+                    resetWeightsVersions();
                   }}
                 />
               </label>
@@ -738,14 +746,37 @@ export function Settings({
                     const v = e.target.value.trim();
                     if (v === "") {
                       setLichessUntilYear(null);
-                      return;
+                    } else {
+                      const n = Number(v);
+                      if (!Number.isFinite(n)) return;
+                      setLichessUntilYear(n);
                     }
-                    const n = Number(v);
-                    if (!Number.isFinite(n)) return;
-                    setLichessUntilYear(n);
+                    clearRanThisSession();
+                    resetWeightsVersions();
                   }}
                 />
               </label>
+            </div>
+            <div className="row" style={{ marginTop: 8 }}>
+              <button
+                onClick={async () => {
+                  if (
+                    !confirm(
+                      "Clear the cached Lichess online data and recompute every study's Lichess weights?",
+                    )
+                  )
+                    return;
+                  await clearLichessCache();
+                  clearRanThisSession();
+                  resetWeightsVersions();
+                }}
+              >
+                Refresh Lichess weights
+              </button>
+              <span className="muted small">
+                Re-pulls Lichess online games for every line in every
+                repertoire under the current filters.
+              </span>
             </div>
           </section>
 
