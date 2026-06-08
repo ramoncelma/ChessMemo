@@ -70,6 +70,15 @@ export function ensureMastersCacheLoaded(): Promise<void> {
   return loadCache();
 }
 
+// Synchronous in-memory peek for callers that want to read the existing
+// cache without triggering a fetch (e.g. the Explorer "Improve repertoire"
+// scanner, which walks every opponent-position in a repertoire and would
+// thrash the API if it requested misses). Always call
+// ensureMastersCacheLoaded() first.
+export function peekMasters(fen: string): MastersData | null {
+  return cache.get(fen) ?? null;
+}
+
 let savePending: ReturnType<typeof setTimeout> | null = null;
 function scheduleSaveCache() {
   if (savePending) return;
@@ -526,6 +535,13 @@ function loadLichessCache(): Promise<void> {
 
 export function ensureLichessCacheLoaded(): Promise<void> {
   return loadLichessCache();
+}
+
+// In-memory peek under the current filter signature — see peekMasters
+// rationale. Always call ensureLichessCacheLoaded() first.
+export function peekLichess(fen: string): LichessData | null {
+  const sig = lichessFiltersSignature();
+  return lichessCache.get(`${sig}::${fen}`) ?? null;
 }
 
 let lichessSavePending: ReturnType<typeof setTimeout> | null = null;

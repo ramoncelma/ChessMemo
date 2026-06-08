@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Chess } from "chess.js";
 import { Board } from "../components/Board";
 import {
@@ -6,6 +6,8 @@ import {
   ensureMastersCacheLoaded,
   fetchLichess,
   fetchMasters,
+  peekLichess,
+  peekMasters,
   type MastersData,
   type MoveWdb,
 } from "../weights";
@@ -110,6 +112,25 @@ export function Explorer({ studies, settings, initial, onInitialApplied }: Props
   }
   function reset() {
     setPath([]);
+  }
+
+  // Reset to start and walk an absolute SAN sequence onto the board.
+  // Used by the "Improve repertoire" gap list to deep-link into the
+  // position where a gap was found.
+  function jumpTo(sans: string[]) {
+    const ch = new Chess();
+    const next: PathStep[] = [];
+    for (const san of sans) {
+      const before = ch.fen();
+      try {
+        const m = ch.move(san);
+        if (!m) break;
+        next.push({ san: m.san, fenBefore: before, fenAfter: ch.fen() });
+      } catch {
+        break;
+      }
+    }
+    setPath(next);
   }
 
   // SANs that the selected repertoire covers from the current FEN. Computed
@@ -236,6 +257,9 @@ export function Explorer({ studies, settings, initial, onInitialApplied }: Props
             orientation={orientation}
           />
           {study && (
+            <ImproveRepertoire study={study} onJumpTo={jumpTo} />
+          )}
+          {study && (
             <Continuations
               study={study.name}
               prefixLen={path.length}
@@ -295,6 +319,21 @@ interface Row {
   variations: number;
 }
 
+// Lichess Cloud Eval returns cp/mate from the side-to-move's POV. Chess
+// convention shows evals as "+" = white better regardless of STM, so we
+// flip the sign when STM at the queried position is black. fenAfter is
+// the FEN whose eval is being normalised.
+function toWhitePOV(ev: CachedEval | null, fenAfter: string): CachedEval | null {
+  if (!ev) return ev;
+  const stm = fenAfter.split(" ")[1];
+  if (stm !== "b") return ev;
+  return {
+    ...ev,
+    cp: ev.cp !== undefined ? -ev.cp : undefined,
+    mate: ev.mate !== undefined ? -ev.mate : undefined,
+  };
+}
+
 function MoveBrowser({
   fen,
   coveredSans,
@@ -306,12 +345,19 @@ function MoveBrowser({
   const [gm, setGm] = useState<MastersData | null | "loading">("loading");
   const [li, setLi] = useState<MastersData | null | "loading">("loading");
   const [ev, setEv] = useState<CachedEval | null | "loading">("loading");
+  // Per-row Stockfish eval at the child position (the FEN reached by
+  // playing that move). Map keyed by SAN. "loading" while a lookup is in
+  // flight; null once we've decided the position isn't analysable.
+  const [rowEvals, setRowEvals] = useState<
+    Map<string, CachedEval | null | "loading">
+  >(new Map());
 
   useEffect(() => {
     let cancelled = false;
     setGm("loading");
     setLi("loading");
     setEv("loading");
+    setRowEvals(new Map());
     void Promise.all([
       ensureMastersCacheLoaded(),
       ensureLichessCacheLoaded(),
@@ -326,7 +372,7 @@ function MoveBrowser({
       if (cancelled) return;
       setGm(g);
       setLi(l);
-      setEv(e);
+      setEv(toWhitePOV(e, fen));
     });
     return () => {
       cancelled = true;
@@ -374,6 +420,45 @@ function MoveBrowser({
     return [...covered, ...others].slice(0, Math.max(MAX_ROWS, covered.length));
   }, [gm, li, coveredSans, variationsBySan]);
 
+  // Walk the visible rows one at a time and look up each child position's
+  // eval. Cached lookups are instant; misses go through the throttle in
+  // lookupEval (800ms). We mutate state per row so the column fills in
+  // progressively rather than all-or-nothing.
+  useEffect(() => {
+    let cancelled = false;
+    if (rows.length === 0) return;
+    void (async () => {
+      for (const r of rows) {
+        if (cancelled) return;
+        try {
+          const ch = new Chess(fen);
+          const m = ch.move(r.san);
+          if (!m) continue;
+          const childFen = ch.fen();
+          setRowEvals((prev) => {
+            if (prev.get(r.san) !== undefined) return prev;
+            const next = new Map(prev);
+            next.set(r.san, "loading");
+            return next;
+          });
+          const raw = await lookupEval(childFen, 1);
+          if (cancelled) return;
+          const normalized = toWhitePOV(raw, childFen);
+          setRowEvals((prev) => {
+            const next = new Map(prev);
+            next.set(r.san, normalized);
+            return next;
+          });
+        } catch {
+          /* skip illegal/unknown move */
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [fen, rows]);
+
   const gmTotal = gm && gm !== "loading" ? gm.total : 0;
   const liTotal = li && li !== "loading" ? li.total : 0;
 
@@ -413,6 +498,9 @@ function MoveBrowser({
               <th title="Number of repertoire lines whose prefix matches what's on the board and that continue with this move">
                 Variations
               </th>
+              <th title="Lichess cloud Stockfish eval of the position AFTER this move. Positive = white better.">
+                SF
+              </th>
               <th title="Games at this position from the GM (Masters) explorer">
                 GM games
               </th>
@@ -438,6 +526,7 @@ function MoveBrowser({
                 <td className="var-cell">
                   {r.variations > 0 ? r.variations : ""}
                 </td>
+                <td className="sf-cell">{renderRowEval(rowEvals.get(r.san))}</td>
                 <td>{r.gmCount > 0 ? r.gmCount.toLocaleString() : "—"}</td>
                 <td>{wdbCell(r.gmWdb)}</td>
                 <td>{r.liCount > 0 ? r.liCount.toLocaleString() : "—"}</td>
@@ -454,6 +543,181 @@ function MoveBrowser({
 function pct(part: number, total: number): string {
   if (total === 0) return "—";
   return `${Math.round((100 * part) / total)}`;
+}
+
+function renderRowEval(
+  ev: CachedEval | null | "loading" | undefined,
+): ReactNode {
+  if (ev === undefined || ev === "loading")
+    return <span className="muted small">…</span>;
+  if (ev === null) return "—";
+  if (ev.notCached) return <span className="muted small">—</span>;
+  if (ev.mate !== undefined) {
+    if (ev.mate === 0) return "#";
+    return `M${ev.mate > 0 ? ev.mate : `−${-ev.mate}`}`;
+  }
+  if (ev.cp === undefined) return "—";
+  const pawns = ev.cp / 100;
+  return `${pawns > 0 ? "+" : ""}${pawns.toFixed(2)}`;
+}
+
+interface Gap {
+  fen: string;
+  missingSan: string;
+  share: number;
+  count: number;
+  pathSans: string[];
+}
+
+// Scan every opponent-position the user's repertoire reaches and report
+// moves above THRESHOLD_PCT in either explorer source that aren't already
+// covered. Sorted by popularity. Cache-only — pre-warms via
+// ensureMastersCacheLoaded / ensureLichessCacheLoaded but never triggers
+// a fetch, so a study with thousands of positions doesn't accidentally
+// hammer the API.
+const THRESHOLD_PCT = 5;
+const MAX_GAPS = 25;
+
+function ImproveRepertoire({
+  study,
+  onJumpTo,
+}: {
+  study: Study;
+  onJumpTo: (sans: string[]) => void;
+}) {
+  const [source, setSource] = useState<"gm" | "lichess">("gm");
+  const [busy, setBusy] = useState(false);
+  const [gaps, setGaps] = useState<Gap[] | null>(null);
+  const [ranSource, setRanSource] = useState<"gm" | "lichess" | null>(null);
+
+  async function run() {
+    setBusy(true);
+    setGaps(null);
+    try {
+      await Promise.all([
+        ensureMastersCacheLoaded(),
+        ensureLichessCacheLoaded(),
+      ]);
+      const opponentSide: "w" | "b" =
+        study.orientation === "white" ? "b" : "w";
+      const coverageByFen = new Map<string, Set<string>>();
+      const pathToFen = new Map<string, string[]>();
+      for (const line of study.lines) {
+        for (let i = 0; i < line.moves.length; i++) {
+          const m = line.moves[i];
+          if (m.color !== opponentSide) continue;
+          let cov = coverageByFen.get(m.fenBefore);
+          if (!cov) {
+            cov = new Set();
+            coverageByFen.set(m.fenBefore, cov);
+            // First time we see this opponent FEN, remember the path the
+            // line took to get here. Later occurrences (transpositions or
+            // sister lines) just contribute to coverage.
+            pathToFen.set(
+              m.fenBefore,
+              line.moves.slice(0, i).map((mm) => mm.san),
+            );
+          }
+          cov.add(normSan(m.san));
+        }
+      }
+      const out: Gap[] = [];
+      for (const [fen, covered] of coverageByFen) {
+        const data = source === "gm" ? peekMasters(fen) : peekLichess(fen);
+        if (!data || data.total === 0) continue;
+        for (const [san, count] of data.counts) {
+          if (covered.has(san)) continue;
+          const share = (100 * count) / data.total;
+          if (share < THRESHOLD_PCT) continue;
+          out.push({
+            fen,
+            missingSan: san,
+            share,
+            count,
+            pathSans: pathToFen.get(fen) ?? [],
+          });
+        }
+      }
+      out.sort((a, b) => b.share - a.share);
+      setGaps(out);
+      setRanSource(source);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const shown = gaps ? gaps.slice(0, MAX_GAPS) : [];
+  return (
+    <div className="explorer-improve">
+      <h3 className="section-label">Improve repertoire</h3>
+      <p className="muted small">
+        Scans the repertoire for opponent moves above {THRESHOLD_PCT}%
+        popularity in the chosen source that you don't have a reply for.
+        Uses cached explorer data only — make sure weights have finished
+        computing first.
+      </p>
+      <div className="row" style={{ gap: 12, flexWrap: "wrap" }}>
+        <label className="row" style={{ gap: 6 }}>
+          <input
+            type="radio"
+            name="improveSource"
+            checked={source === "gm"}
+            onChange={() => setSource("gm")}
+          />
+          GM (Masters)
+        </label>
+        <label className="row" style={{ gap: 6 }}>
+          <input
+            type="radio"
+            name="improveSource"
+            checked={source === "lichess"}
+            onChange={() => setSource("lichess")}
+          />
+          Lichess online
+        </label>
+        <button onClick={run} disabled={busy}>
+          {busy ? "Scanning…" : "Improve repertoire"}
+        </button>
+      </div>
+      {gaps !== null && gaps.length === 0 && (
+        <p className="muted small">
+          No uncovered opponent moves above {THRESHOLD_PCT}% in{" "}
+          {ranSource === "gm" ? "GM" : "Lichess"} data. Either the
+          repertoire is already comprehensive at that threshold or the
+          source's cache hasn't been populated yet.
+        </p>
+      )}
+      {shown.length > 0 && (
+        <>
+          <p className="muted small">
+            Top {shown.length} of {gaps?.length ?? 0} gaps. Click any to
+            jump to the position.
+          </p>
+          <ul className="improve-list">
+            {shown.map((g, i) => (
+              <li key={`${g.fen}-${g.missingSan}-${i}`}>
+                <button
+                  className="link improve-btn"
+                  onClick={() => onJumpTo(g.pathSans)}
+                  title={`Jump to this position in the Explorer (opponent then plays ${g.missingSan})`}
+                >
+                  <span className="improve-share">
+                    {g.share.toFixed(1)}%
+                  </span>
+                  <span className="improve-sans">
+                    {g.pathSans.length > 0 ? g.pathSans.join(" ") : "(start)"}
+                    {" "}
+                    <span className="muted">→</span>{" "}
+                    <strong>{g.missingSan}</strong>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
+    </div>
+  );
 }
 
 function wdbCell(wdb?: MoveWdb): string {
