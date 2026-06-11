@@ -59,7 +59,12 @@ export function MistakesMode({ deviations, settings, onBack }: Props) {
   const order = useMemo(() => shuffled(deviations), [deviations]);
   const [idx, setIdx] = useState(0);
   const [verdict, setVerdict] = useState<"idle" | "correct" | "wrong">("idle");
-  const [played, setPlayed] = useState<string | null>(null);
+  // We track attempts per position so the user can see how many guesses
+  // they're up to — but we DON'T reveal which move they originally played
+  // in the real game (so they can rediscover the answer without being
+  // primed by their own previous mistake).
+  const [attempts, setAttempts] = useState(0);
+  const [revealed, setRevealed] = useState(false);
 
   if (order.length === 0) {
     return (
@@ -95,7 +100,7 @@ export function MistakesMode({ deviations, settings, onBack }: Props) {
   const expectedSet = new Set(dev.expected.map(norm));
 
   function handleDrop(from: string, to: string): boolean {
-    if (verdict !== "idle" || !fen) return false;
+    if (verdict === "correct" || !fen) return false;
     const ch = new Chess(fen);
     let san: string | null = null;
     try {
@@ -103,18 +108,23 @@ export function MistakesMode({ deviations, settings, onBack }: Props) {
     } catch {
       return false;
     }
-    setPlayed(san);
+    setAttempts((a) => a + 1);
     if (expectedSet.has(norm(san))) {
       setVerdict("correct");
-    } else {
-      setVerdict("wrong");
+      return true;
     }
-    return true;
+    // Wrong — flash a brief "not yet" and reset to idle so the user can
+    // try again. We don't accept the move on the board (the position
+    // doesn't change), so dragging another piece works immediately.
+    setVerdict("wrong");
+    setTimeout(() => setVerdict("idle"), 600);
+    return false;
   }
 
   function next() {
     setVerdict("idle");
-    setPlayed(null);
+    setAttempts(0);
+    setRevealed(false);
     setIdx((i) => i + 1);
   }
 
@@ -130,15 +140,22 @@ export function MistakesMode({ deviations, settings, onBack }: Props) {
       </div>
 
       <p className="muted small">
-        You played <b>{dev.played}</b> in this game (move {dev.fullmove}). Play
-        the move your repertoire expects.
+        You deviated from your repertoire here at move {dev.fullmove}. Play
+        the move your prep expects — your previous mistake stays hidden so
+        you can rediscover the answer cleanly.
+        {attempts > 0 && verdict !== "correct" && (
+          <>
+            {" "}
+            <strong>Attempts: {attempts}</strong>
+          </>
+        )}
       </p>
 
       {fen ? (
         <Board
           fen={fen}
           orientation={dev.orientation}
-          draggable={verdict === "idle"}
+          draggable={verdict !== "correct"}
           onDrop={handleDrop}
           boardThemeId={settings.boardThemeId}
           pieceSet={settings.pieceSet}
@@ -151,7 +168,7 @@ export function MistakesMode({ deviations, settings, onBack }: Props) {
         {verdict === "correct" && (
           <div className="wrong-block">
             <span className="result correct">
-              ✓ {played} — that's your repertoire's move.
+              ✓ Correct — that's your repertoire's move.
             </span>
             <button className="primary big" onClick={next}>
               Next
@@ -161,7 +178,24 @@ export function MistakesMode({ deviations, settings, onBack }: Props) {
         {verdict === "wrong" && (
           <div className="wrong-block">
             <span className="result wrong">
-              ✕ Not the studied move. Expected: <b>{dev.expected.join(", ")}</b>
+              ✕ Not the studied move. Try again.
+            </span>
+          </div>
+        )}
+        {verdict === "idle" && attempts >= 3 && !revealed && (
+          <div className="row" style={{ gap: 8 }}>
+            <button className="link small" onClick={() => setRevealed(true)}>
+              Show me
+            </button>
+            <button className="link small" onClick={next}>
+              Skip
+            </button>
+          </div>
+        )}
+        {revealed && (
+          <div className="wrong-block">
+            <span className="muted small">
+              Expected: <b>{dev.expected.join(", ")}</b>
             </span>
             <button className="primary big" onClick={next}>
               Next

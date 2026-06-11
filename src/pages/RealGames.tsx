@@ -272,7 +272,7 @@ export function RealGames({ studies, settings, onSettings }: Props) {
           }
           onClick={() => setView("fix-mistakes")}
         >
-          Fix your mistakes
+          Fix mistakes
         </button>
       </div>
 
