@@ -181,6 +181,8 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
     setLichessSinceYear,
     setLichessUntilYear,
     setWeightRankingSource,
+    setMemorizationMethod,
+    setSrsLevels,
   } = useSettings();
   const [tab, setTab] = useState<Tab>("dashboard");
   const [readingId, setReadingId] = useState<string | null>(null);
@@ -372,6 +374,8 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
               setLichessSinceYear={setLichessSinceYear}
               setLichessUntilYear={setLichessUntilYear}
               setWeightRankingSource={setWeightRankingSource}
+              setMemorizationMethod={setMemorizationMethod}
+              setSrsLevels={setSrsLevels}
               resetWeightsVersions={resetWeightsVersions}
               resetEvalsAll={resetEvalsAll}
             />

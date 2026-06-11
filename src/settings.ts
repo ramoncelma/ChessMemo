@@ -73,6 +73,31 @@ export function lichessRatingLabel(r: LichessRating): string {
 // to it as a secondary number — this just picks which one is "primary".
 export type WeightRankingSource = "gm" | "lichess";
 
+// Which scheduler runs grading. "sr" is the custom fixed-interval system
+// (with user-editable level intervals below). "fsrs" delegates to the
+// standard ts-fsrs algorithm — same Again/Hard/Good/Easy interface but
+// FSRS-driven intervals.
+export type MemorizationMethod = "sr" | "fsrs";
+
+export interface SrsLevelConfig {
+  name: string;
+  // 0 for level 0 (brand-new). Otherwise the gap before this level becomes
+  // due next.
+  intervalMs: number;
+}
+
+export const DEFAULT_SRS_LEVELS: SrsLevelConfig[] = [
+  { name: "New", intervalMs: 0 },
+  { name: "8 hours", intervalMs: 8 * 3600_000 },
+  { name: "2 days", intervalMs: 2 * 24 * 3600_000 },
+  { name: "5 days", intervalMs: 5 * 24 * 3600_000 },
+  { name: "2 weeks", intervalMs: 14 * 24 * 3600_000 },
+  { name: "1 month", intervalMs: 30 * 24 * 3600_000 },
+  { name: "2 months", intervalMs: 60 * 24 * 3600_000 },
+  { name: "3 months", intervalMs: 90 * 24 * 3600_000 },
+  { name: "6 months", intervalMs: 180 * 24 * 3600_000 },
+];
+
 export interface Settings {
   boardThemeId: string;
   pieceSet: PieceSet;
@@ -105,6 +130,8 @@ export interface Settings {
   lichessUntilYear: number | null;
   // Which source drives ranking — see WeightRankingSource above.
   weightRankingSource: WeightRankingSource;
+  memorizationMethod: MemorizationMethod;
+  srsLevels: SrsLevelConfig[];
 }
 
 const DEFAULTS: Settings = {
@@ -149,6 +176,8 @@ const DEFAULTS: Settings = {
   lichessSinceYear: null,
   lichessUntilYear: null,
   weightRankingSource: "gm",
+  memorizationMethod: "sr",
+  srsLevels: DEFAULT_SRS_LEVELS,
 };
 const KEY = "chessmemo.settings";
 const LICHESS_TOKEN_KEY = "chessmemo.lichessToken";
@@ -281,6 +310,10 @@ export function useSettings() {
       setSettings((s) => ({ ...s, lichessUntilYear })),
     setWeightRankingSource: (weightRankingSource: WeightRankingSource) =>
       setSettings((s) => ({ ...s, weightRankingSource })),
+    setMemorizationMethod: (memorizationMethod: MemorizationMethod) =>
+      setSettings((s) => ({ ...s, memorizationMethod })),
+    setSrsLevels: (srsLevels: SrsLevelConfig[]) =>
+      setSettings((s) => ({ ...s, srsLevels })),
   };
 }
 

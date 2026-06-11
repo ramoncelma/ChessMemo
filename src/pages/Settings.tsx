@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Board } from "../components/Board";
 import {
   BOARD_THEMES,
+  DEFAULT_SRS_LEVELS,
   LICHESS_RATINGS,
   LICHESS_SPEEDS,
   PIECE_SETS,
@@ -10,9 +11,11 @@ import {
   lichessRatingLabel,
   setLichessToken as writeLichessToken,
   type LichessRating,
+  type MemorizationMethod,
   type PieceSet,
   type Settings as SettingsType,
   type Speed,
+  type SrsLevelConfig,
   type Theme,
   type WeightRankingSource,
 } from "../settings";
@@ -63,11 +66,13 @@ interface Props {
   setLichessSinceYear: (n: number | null) => void;
   setLichessUntilYear: (n: number | null) => void;
   setWeightRankingSource: (s: WeightRankingSource) => void;
+  setMemorizationMethod: (m: MemorizationMethod) => void;
+  setSrsLevels: (l: SrsLevelConfig[]) => void;
   resetWeightsVersions: () => void;
   resetEvalsAll: () => void;
 }
 
-type Section = "appearance" | "preferences" | "sync" | "about";
+type Section = "appearance" | "preferences" | "method" | "sync" | "about";
 
 function pieceThumb(set: PieceSet): string {
   return `https://cdn.jsdelivr.net/gh/lichess-org/lila@master/public/piece/${set}/wN.svg`;
@@ -101,6 +106,8 @@ export function Settings({
   setLichessSinceYear,
   setLichessUntilYear,
   setWeightRankingSource,
+  setMemorizationMethod,
+  setSrsLevels,
   resetWeightsVersions,
   resetEvalsAll,
 }: Props) {
@@ -308,6 +315,12 @@ export function Settings({
           onClick={() => setSection("preferences")}
         >
           Preferences
+        </button>
+        <button
+          className={section === "method" ? "active" : ""}
+          onClick={() => setSection("method")}
+        >
+          Method
         </button>
         <button
           className={section === "sync" ? "active" : ""}
@@ -1121,6 +1134,15 @@ export function Settings({
         </>
       )}
 
+      {section === "method" && (
+        <MethodSection
+          method={settings.memorizationMethod}
+          levels={settings.srsLevels}
+          setMemorizationMethod={setMemorizationMethod}
+          setSrsLevels={setSrsLevels}
+        />
+      )}
+
       {section === "about" && (
         <section className="about">
           <h3 className="section-label">{t("about.h1")}</h3>
@@ -1143,5 +1165,210 @@ export function Settings({
         </section>
       )}
     </div>
+  );
+}
+
+
+// ---------------------------------------------------------------------------
+// Method section — pick Spaced Repetition vs FSRS and edit SR levels.
+// ---------------------------------------------------------------------------
+
+const MS_PER_UNIT: Record<string, number> = {
+  min: 60_000,
+  hr: 3_600_000,
+  day: 86_400_000,
+  wk: 7 * 86_400_000,
+  mo: 30 * 86_400_000,
+};
+
+function intervalToHumanParts(ms: number): { value: number; unit: keyof typeof MS_PER_UNIT } {
+  if (ms === 0) return { value: 0, unit: "day" };
+  const order: (keyof typeof MS_PER_UNIT)[] = ["mo", "wk", "day", "hr", "min"];
+  for (const u of order) {
+    const v = ms / MS_PER_UNIT[u];
+    if (v >= 1 && Number.isInteger(v)) return { value: v, unit: u };
+  }
+  // Fall back to a non-integer in days for odd values.
+  return { value: Math.round((ms / MS_PER_UNIT.day) * 10) / 10, unit: "day" };
+}
+
+function MethodSection({
+  method,
+  levels,
+  setMemorizationMethod,
+  setSrsLevels,
+}: {
+  method: MemorizationMethod;
+  levels: SrsLevelConfig[];
+  setMemorizationMethod: (m: MemorizationMethod) => void;
+  setSrsLevels: (l: SrsLevelConfig[]) => void;
+}) {
+  function updateLevel(i: number, patch: Partial<SrsLevelConfig>) {
+    setSrsLevels(levels.map((l, j) => (i === j ? { ...l, ...patch } : l)));
+  }
+  function addLevel() {
+    const last = levels[levels.length - 1];
+    setSrsLevels([
+      ...levels,
+      {
+        name: `Level ${levels.length}`,
+        intervalMs: Math.max(MS_PER_UNIT.day, last.intervalMs * 2),
+      },
+    ]);
+  }
+  function removeLevel(i: number) {
+    if (levels.length <= 2) return;
+    setSrsLevels(levels.filter((_, j) => j !== i));
+  }
+  return (
+    <>
+      <section>
+        <h3 className="section-label">Memorization method</h3>
+        <p className="muted small">
+          Picks which scheduler runs on a clean line / a miss. Changing
+          this affects future grades only — already-stamped lines keep
+          their current due date until their next review.
+        </p>
+        <div className="row" style={{ gap: 12, flexWrap: "wrap" }}>
+          <label className="row" style={{ gap: 6 }}>
+            <input
+              type="radio"
+              name="memorizationMethod"
+              checked={method === "sr"}
+              onChange={() => setMemorizationMethod("sr")}
+            />
+            <span>
+              <strong>Spaced Repetition</strong> · fixed-interval levels
+              (editable below)
+            </span>
+          </label>
+          <label className="row" style={{ gap: 6 }}>
+            <input
+              type="radio"
+              name="memorizationMethod"
+              checked={method === "fsrs"}
+              onChange={() => setMemorizationMethod("fsrs")}
+            />
+            <span>
+              <strong>Anki (FSRS)</strong> · standard ts-fsrs parameters
+            </span>
+          </label>
+        </div>
+      </section>
+
+      {method === "sr" && (
+        <section>
+          <h3 className="section-label">Spaced Repetition levels</h3>
+          <p className="muted small">
+            Each level has a name shown in the UI and an interval the line
+            waits before becoming due again. Level 0 is "brand new" and
+            should always be 0. Add or remove levels as you like; the
+            minimum is two levels (new + one review interval).
+          </p>
+          <table className="sr-levels-table">
+            <thead>
+              <tr>
+                <th style={{ width: 40 }}>#</th>
+                <th>Name</th>
+                <th style={{ width: 100 }}>Value</th>
+                <th style={{ width: 90 }}>Unit</th>
+                <th style={{ width: 60 }}></th>
+              </tr>
+            </thead>
+            <tbody>
+              {levels.map((l, i) => {
+                const { value, unit } = intervalToHumanParts(l.intervalMs);
+                return (
+                  <tr key={i}>
+                    <td>{i}</td>
+                    <td>
+                      <input
+                        className="text-input"
+                        value={l.name}
+                        onChange={(e) => updateLevel(i, { name: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        className="text-input"
+                        type="number"
+                        min={0}
+                        step={0.5}
+                        disabled={i === 0}
+                        value={i === 0 ? 0 : value}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          if (!Number.isFinite(v) || v < 0) return;
+                          updateLevel(i, { intervalMs: v * MS_PER_UNIT[unit] });
+                        }}
+                      />
+                    </td>
+                    <td>
+                      <select
+                        className="text-input"
+                        disabled={i === 0}
+                        value={unit}
+                        onChange={(e) => {
+                          const newUnit = e.target.value as keyof typeof MS_PER_UNIT;
+                          updateLevel(i, {
+                            intervalMs: value * MS_PER_UNIT[newUnit],
+                          });
+                        }}
+                      >
+                        <option value="min">minutes</option>
+                        <option value="hr">hours</option>
+                        <option value="day">days</option>
+                        <option value="wk">weeks</option>
+                        <option value="mo">months</option>
+                      </select>
+                    </td>
+                    <td>
+                      {levels.length > 2 && i > 0 && (
+                        <button
+                          className="link small"
+                          onClick={() => removeLevel(i)}
+                          title="Remove this level"
+                        >
+                          ×
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          <div className="row" style={{ marginTop: 8 }}>
+            <button onClick={addLevel}>+ Add level</button>
+            <button
+              className="link small"
+              onClick={() => setSrsLevels(DEFAULT_SRS_LEVELS)}
+            >
+              Reset to defaults
+            </button>
+          </div>
+        </section>
+      )}
+
+      {method === "fsrs" && (
+        <section>
+          <h3 className="section-label">Anki (FSRS)</h3>
+          <p className="muted small">
+            Uses the open-source ts-fsrs library with its standard parameter
+            set — the same algorithm Anki ships now. Grades you give a line
+            (Again / Hard / Good / Easy) feed FSRS, which computes the next
+            due date based on the line's current stability and difficulty.
+            Per-line FSRS state rides the gist sync the same way SRS levels
+            do, so switching devices preserves your progress.
+          </p>
+          <p className="muted small">
+            The SR levels above are still used as <em>display buckets</em>{" "}
+            (so the "L3" badge on lines, the retention bar, and the level
+            distribution chart keep working). FSRS picks the closest
+            matching bucket by interval for each line.
+          </p>
+        </section>
+      )}
+    </>
   );
 }

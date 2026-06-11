@@ -1505,6 +1505,29 @@ button.link.danger {
   font-variant-numeric: tabular-nums;
 }
 
+.sr-levels-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 8px;
+}
+.sr-levels-table th, .sr-levels-table td {
+  text-align: left;
+  padding: 3px 6px;
+  border-bottom: 1px solid var(--border, rgba(0,0,0,0.08));
+  vertical-align: middle;
+}
+.sr-levels-table th {
+  font-weight: 700;
+  color: var(--muted);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.sr-levels-table .text-input {
+  width: 100%;
+  min-width: 0;
+}
+
 .line-row.expanded {
   flex-direction: column;
   align-items: stretch;
