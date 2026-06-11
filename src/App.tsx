@@ -8,6 +8,7 @@ import { LineDrill } from "./pages/LineDrill";
 import { PositionDrill } from "./pages/PositionDrill";
 import { RealGames } from "./pages/RealGames";
 import { Explorer } from "./pages/Explorer";
+import { Games } from "./pages/Games";
 import { Settings } from "./pages/Settings";
 import { useStudies, type LineItem, type PositionItem } from "./useStudies";
 import { useSettings } from "./settings";
@@ -29,6 +30,7 @@ type Tab =
   | "realgames"
   | "repertoire"
   | "explorer"
+  | "games"
   | "settings"
   | "drill";
 
@@ -323,6 +325,9 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
               onSettings={() => setTab("settings")}
             />
           )}
+          {tab === "games" && (
+            <Games studies={studies} settings={settings} />
+          )}
           {tab === "explorer" && (
             <Explorer
               studies={studies}
@@ -442,6 +447,13 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
             >
               <span className="tab-ico">⌕</span>
               Explorer
+            </button>
+            <button
+              className={tab === "games" ? "active" : ""}
+              onClick={() => setTab("games")}
+            >
+              <span className="tab-ico">♛</span>
+              Games
             </button>
             <button
               className={tab === "repertoire" ? "active" : ""}
