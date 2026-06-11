@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { GuessTheMove } from "./GuessTheMove";
+import { IsThisCorrect } from "./IsThisCorrect";
+import { BlunderKiller } from "./BlunderKiller";
 import type { Settings } from "../settings";
 import type { Study } from "../types";
 
@@ -33,6 +35,20 @@ export function Games({ studies, settings }: Props) {
         onExit={() => setActive(null)}
       />
     );
+  }
+  if (active === "iscorrect" && study) {
+    return (
+      <IsThisCorrect
+        study={study}
+        chapterIdx={setupChapterIdx}
+        startDepth={setupDepth}
+        settings={settings}
+        onExit={() => setActive(null)}
+      />
+    );
+  }
+  if (active === "blunder") {
+    return <BlunderKiller settings={settings} onExit={() => setActive(null)} />;
   }
 
   if (studies.length === 0) {
@@ -146,16 +162,26 @@ export function Games({ studies, settings }: Props) {
           are filtered to be at least 3× your engine forgiveness threshold
           worse so the answer is unambiguous.
         </p>
-        <button disabled>Coming next commit</button>
+        <button
+          className="primary"
+          disabled={!study}
+          onClick={() => setActive("iscorrect")}
+        >
+          Play
+        </button>
       </section>
 
       <section className="study-card">
         <div className="list-title">Blunder killer</div>
         <p className="muted small">
           A blunder pulled from a real downloaded Lichess game — find the
-          tactic that punishes it.
+          tactic that punishes it. Requires engine evals cached for the
+          game positions (Read mode warms the cache as you step through;
+          you can also "Refresh Stockfish evals" in Settings).
         </p>
-        <button disabled>Coming next commit</button>
+        <button className="primary" onClick={() => setActive("blunder")}>
+          Play
+        </button>
       </section>
     </div>
   );
