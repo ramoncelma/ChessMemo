@@ -42,39 +42,23 @@ export function getMemorizationMethod(): "sr" | "fsrs" {
   return s.memorizationMethod === "fsrs" ? "fsrs" : "sr";
 }
 
-// Back-compat re-exports — callers that used to import the constants
-// directly continue to work; they now read live settings.
-export const LEVEL_INTERVALS_MS = new Proxy([] as number[], {
-  get(_t, p) {
-    if (p === "length") return getCurrentSrsLevels().length;
-    if (typeof p === "string" && /^\d+$/.test(p)) {
-      return getCurrentSrsLevels()[Number(p)]?.intervalMs ?? 0;
-    }
-    return Reflect.get(getCurrentSrsLevels().map((l) => l.intervalMs), p);
-  },
-}) as unknown as readonly number[];
-
-export const LEVEL_NAMES = new Proxy([] as string[], {
-  get(_t, p) {
-    if (p === "length") return getCurrentSrsLevels().length;
-    if (typeof p === "string" && /^\d+$/.test(p)) {
-      return getCurrentSrsLevels()[Number(p)]?.name ?? "";
-    }
-    return Reflect.get(getCurrentSrsLevels().map((l) => l.name), p);
-  },
-}) as unknown as readonly string[];
-
-function maxLevel(): number {
+// Live getters. The previous implementation wrapped these in Proxy objects
+// so existing call sites that did `LEVEL_NAMES.length` etc. would still
+// work — but JS engine ToPrimitive on a Proxy that returns numbers for
+// every property access throws "X is not a function", which crashed the
+// app on first level comparison. Plain functions instead; callers updated.
+export function getLevelIntervals(): readonly number[] {
+  return getCurrentSrsLevels().map((l) => l.intervalMs);
+}
+export function getLevelNames(): readonly string[] {
+  return getCurrentSrsLevels().map((l) => l.name);
+}
+export function getMaxLevel(): number {
   return getCurrentSrsLevels().length - 1;
 }
-export const MAX_LEVEL = new Proxy(
-  { v: 0 },
-  { get: () => maxLevel() },
-) as unknown as number;
-
 // "retained" = scheduled at least a month out. Derived from the user's
 // level config rather than hardcoded.
-function retainedLevel(): number {
+export function getRetainedLevel(): number {
   const levels = getCurrentSrsLevels();
   for (let i = 0; i < levels.length; i++) {
     if (levels[i].intervalMs >= 30 * 24 * HOUR) return i;
@@ -82,10 +66,10 @@ function retainedLevel(): number {
   // Fall back to the second-half levels if nothing crosses a month.
   return Math.max(1, Math.floor(levels.length / 2));
 }
-export const RETAINED_LEVEL = new Proxy(
-  { v: 0 },
-  { get: () => retainedLevel() },
-) as unknown as number;
+
+function maxLevel(): number {
+  return getMaxLevel();
+}
 
 export const RESPONSE_TIMEOUT_MS = 30_000;
 

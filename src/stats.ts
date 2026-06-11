@@ -1,4 +1,4 @@
-import { isDue, LEVEL_NAMES, RETAINED_LEVEL } from "./srs";
+import { isDue, getLevelNames, getRetainedLevel } from "./srs";
 import { nowSrs } from "./clock";
 import type { ReviewEntry } from "./storage";
 import type { Line, Study } from "./types";
@@ -10,12 +10,14 @@ export interface Retention {
 }
 
 export function retention(lines: Line[]): Retention {
-  const levels = new Array(LEVEL_NAMES.length).fill(0);
+  const names = getLevelNames();
+  const retainedLvl = getRetainedLevel();
+  const levels = new Array(names.length).fill(0);
   let retained = 0;
   for (const l of lines) {
-    const lvl = l.sched.level;
+    const lvl = Math.min(l.sched.level, names.length - 1);
     levels[lvl]++;
-    if (lvl >= RETAINED_LEVEL) retained++;
+    if (lvl >= retainedLvl) retained++;
   }
   const total = lines.length;
   return {

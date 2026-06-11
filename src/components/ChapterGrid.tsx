@@ -1,5 +1,5 @@
 import { useT } from "../i18n";
-import { RETAINED_LEVEL } from "../srs";
+import { getRetainedLevel } from "../srs";
 import { chapterCoverage, formatCoverage } from "../coverage";
 import type { Study } from "../types";
 
@@ -14,12 +14,13 @@ interface Props {
 // progress bar.
 export function ChapterGrid({ study, onPick }: Props) {
   const t = useT();
+  const retainedLvl = getRetainedLevel();
   return (
     <div className="chapter-grid">
       {study.chapters.map((ch, i) => {
         const lines = study.lines.filter((l) => l.chapterIdx === i);
         const total = lines.length;
-        const learned = lines.filter((l) => l.sched.level >= RETAINED_LEVEL).length;
+        const learned = lines.filter((l) => l.sched.level >= retainedLvl).length;
         const pct = total === 0 ? 0 : Math.round((learned / total) * 100);
         const complete = total > 0 && learned === total;
         const coverage = chapterCoverage(study, i);

@@ -9,7 +9,7 @@ import {
   retention,
 } from "../stats";
 import { useT, levelName, levelInterval } from "../i18n";
-import { LEVEL_NAMES } from "../srs";
+import { getLevelNames } from "../srs";
 import { LevelBadge } from "../components/LevelBadge";
 import type { LineItem } from "../useStudies";
 import type { Study } from "../types";
@@ -125,7 +125,7 @@ export function Dashboard({
         <section>
           <h3 className="section-label">{t("dash.levels")}</h3>
           <div className="level-list">
-            {LEVEL_NAMES.map((_, i) => (
+            {getLevelNames().map((_, i) => (
               <div key={i} className="level-item">
                 <span className={`level-dot lvl-${i}`} />
                 <span className="level-name">
