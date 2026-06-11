@@ -12,7 +12,7 @@ interface Props {
   onExit: () => void;
 }
 
-type Phase = "playing" | "wrong" | "lineDone";
+type Phase = "playing" | "wrong" | "guessed" | "lineDone";
 
 // Game: random line, first `startDepth` plies auto-played, then the user
 // guesses each of their own moves while opponent moves auto-play. No SRS
@@ -106,6 +106,10 @@ export function GuessTheMove({
     if (correct) {
       setPlyIdx((i) => i + 1);
       setScore((s) => ({ ...s, correct: s.correct + 1 }));
+      // Stop after a single guess and offer next-step options. The user can
+      // pick a fresh line, play out the current one, or exit. Continuing
+      // sends them back to "playing" and the loop resumes normally.
+      setPhase("guessed");
       return true;
     }
     setScore((s) => ({ ...s, wrong: s.wrong + 1 }));
@@ -206,26 +210,42 @@ export function GuessTheMove({
                 </div>
               </div>
             )}
+            {phase === "guessed" && (
+              <div>
+                <p>
+                  <strong>Correct.</strong> What now?
+                </p>
+                <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+                  <button className="primary" onClick={pickRandomLine}>
+                    Try another line
+                  </button>
+                  <button onClick={() => setPhase("playing")}>
+                    Continue the line
+                  </button>
+                  <button onClick={onExit}>Exit</button>
+                </div>
+              </div>
+            )}
             {phase === "lineDone" && (
               <div>
                 <p>
                   <strong>Line complete.</strong>{" "}
                   {line.moves.map((m) => m.san).join(" ")}
                 </p>
-                <button className="primary" onClick={pickRandomLine}>
-                  Next line
-                </button>
+                <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+                  <button className="primary" onClick={pickRandomLine}>
+                    Try another line
+                  </button>
+                  <button onClick={onExit}>Exit</button>
+                </div>
               </div>
             )}
+            {/* Only show the SANs that have actually been played — keep
+                the upcoming moves hidden so the user can't sneak-peek the
+                next answer. */}
             <p className="muted small" style={{ marginTop: 12 }}>
-              {line.moves.map((m, i) => (
-                <span
-                  key={i}
-                  style={{
-                    opacity: i < plyIdx ? 1 : 0.35,
-                    fontWeight: i < plyIdx ? 600 : 400,
-                  }}
-                >
+              {line.moves.slice(0, plyIdx).map((m, i) => (
+                <span key={i} style={{ fontWeight: 600 }}>
                   {m.san}{" "}
                 </span>
               ))}
