@@ -1144,24 +1144,50 @@ export function Settings({
       )}
 
       {section === "about" && (
-        <section className="about">
-          <h3 className="section-label">{t("about.h1")}</h3>
-          <p>{t("about.p1")}</p>
-          <p>{t("about.p2")}</p>
-          <h3 className="section-label">{t("about.levelsH")}</h3>
-          <ol className="level-legend">
-            {[1, 2, 3, 4, 5, 6, 7, 8].map((i) => (
-              <li key={i}>
-                {t("about.levelLine", {
-                  n: i,
-                  name: levelName(t, i),
-                  int: levelInterval(t, i),
-                })}
-              </li>
-            ))}
-          </ol>
-          <h3 className="section-label">{t("about.timingH")}</h3>
-          <p>{t("about.timing")}</p>
+        <section className="about wiki">
+          {[
+            "intro",
+            "repertoires",
+            "method",
+            "practice",
+            "read",
+            "explorer",
+            "games",
+            "realGames",
+            "weights",
+            "eval",
+            "sync",
+            "privacy",
+          ].map((k) => (
+            <div key={k} className="wiki-section">
+              <h3 className="section-label">{t(`about.${k}.h`)}</h3>
+              <p>{t(`about.${k}.body`)}</p>
+            </div>
+          ))}
+
+          <div className="wiki-section">
+            <h3 className="section-label">{t("about.levelsH")}</h3>
+            <p className="muted small">{t("about.levelsHelp")}</p>
+            <ol className="level-legend">
+              {settings.srsLevels.slice(1).map((_, idx) => {
+                const i = idx + 1;
+                return (
+                  <li key={i}>
+                    {t("about.levelLine", {
+                      n: i,
+                      name: levelName(t, i),
+                      int: levelInterval(t, i),
+                    })}
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+
+          <div className="wiki-section">
+            <h3 className="section-label">{t("about.timingH")}</h3>
+            <p>{t("about.timing")}</p>
+          </div>
         </section>
       )}
     </div>

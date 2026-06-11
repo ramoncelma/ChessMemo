@@ -1528,6 +1528,14 @@ button.link.danger {
   min-width: 0;
 }
 
+.wiki .wiki-section {
+  margin-bottom: 18px;
+}
+.wiki .wiki-section p {
+  margin: 4px 0 0 0;
+  line-height: 1.5;
+}
+
 .line-row.expanded {
   flex-direction: column;
   align-items: stretch;
