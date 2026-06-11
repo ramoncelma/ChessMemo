@@ -452,7 +452,7 @@ function AppInner({ initialSyncResult, clearSyncResult, reload }: InnerProps) {
               className={tab === "games" ? "active" : ""}
               onClick={() => setTab("games")}
             >
-              <span className="tab-ico">♛</span>
+              <span className="tab-ico">🎮</span>
               Games
             </button>
             <button
